@@ -42,13 +42,18 @@ export class Map implements AfterViewInit, OnDestroy {
     
     this.map = L.map('map', {
       center: center,
-      zoom: 13
+      zoom: 13,
+      zoomControl: false // Cleaner look, zoom can be added elsewhere
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // CartoDB Dark Matter Tiles for premium dark mode aesthetics
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
-      attribution: '© OpenStreetMap contributors'
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
     }).addTo(this.map);
+    
+    // Add zoom control to bottom right so it doesn't clash with our layout
+    L.control.zoom({ position: 'bottomright' }).addTo(this.map);
   }
 
   private loadPlaces() {
@@ -65,7 +70,16 @@ export class Map implements AfterViewInit, OnDestroy {
     if (!this.map || !L) return;
 
     places.forEach(place => {
-      L.marker([place.lat, place.lng])
+      // Create a premium custom HTML marker
+      const categoryClass = place.category ? place.category.toLowerCase() : 'general';
+      const customIcon = L.divIcon({
+        className: 'custom-leaflet-icon',
+        html: `<div class="pulse-marker-wrapper"><div class="pulse-marker ${categoryClass}"></div></div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+
+      L.marker([place.lat, place.lng], { icon: customIcon })
         .addTo(this.map)
         .bindPopup(`
           <div class="custom-popup">
@@ -73,7 +87,7 @@ export class Map implements AfterViewInit, OnDestroy {
             <h3>${place.name}</h3>
             <p>${place.description || ''}</p>
           </div>
-        `);
+        `, { closeButton: false }); // Remove default close button for cleaner UI
     });
   }
 }
