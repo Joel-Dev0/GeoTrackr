@@ -1,22 +1,59 @@
 <div class="app-container">
-  <header>
-    <div class="logo">
-      <span class="icon">🌍</span>
-      <h1>GeoTrackr</h1>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <span class="icon">🌍</span>
+        <h1>GeoTrackr</h1>
+      </div>
     </div>
-    <div class="status">
-      <span class="pulse"></span>
-      API Online
+    
+    <nav class="sidebar-nav">
+      <ul>
+        <li class="active">
+          <span class="nav-icon">🗺️</span>
+          Live Map
+        </li>
+        <li>
+          <span class="nav-icon">📍</span>
+          Saved Places
+        </li>
+        <li>
+          <span class="nav-icon">⚙️</span>
+          Settings
+        </li>
+      </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-card">
+        <div class="status-indicator">
+          <span class="pulse"></span>
+        </div>
+        <div class="status-text">
+          <span class="status-title">System Status</span>
+          <span class="status-subtitle">API Online & Encrypted</span>
+        </div>
+      </div>
     </div>
-  </header>
+  </aside>
 
-  <main>
-    <app-map></app-map>
-  </main>
+  <!-- Main Content Area -->
+  <div class="content-wrapper">
+    <header class="topbar">
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Search for coordinates or categories...">
+      </div>
+      <div class="user-profile">
+        <img src="https://ui-avatars.com/api/?name=Admin&background=4f46e5&color=fff&rounded=true" alt="User Profile" class="avatar">
+      </div>
+    </header>
 
-  <footer>
-    <p>&copy; 2026 GeoTrackr - Premium Geolocation Services</p>
-  </footer>
+    <main class="main-content">
+      <app-map></app-map>
+    </main>
+  </div>
 </div>
 
 <router-outlet />

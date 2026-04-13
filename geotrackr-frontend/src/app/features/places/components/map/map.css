@@ -1,21 +1,22 @@
 :host {
   display: block;
   width: 100%;
-  height: calc(100vh - 80px); /* Adjust based on header if any */
+  height: 100%;
+}
+
+.map-container {
+  height: 100%;
+  width: 100%;
+  background: var(--white, #ffffff);
+  border-radius: 16px;
+  padding: 8px; /* Internal padding for map border effect */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border, #e2e8f0);
 }
 
 #map {
   height: 100%;
   width: 100%;
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
   z-index: 1;
-}
-
-.map-container {
-  height: 100%;
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(10px);
 }

@@ -3,18 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\Place;
+use App\Services\PlaceService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class PlacesController extends Controller
 {
+    public function __construct(private PlaceService $placeService)
+    {
+    }
+
     /**
      * Return all places as JSON.
      */
     public function index(): JsonResponse
     {
-        $places = Place::all();
-        return response()->json($places);
+        return response()->json($this->placeService->getAllPlaces());
     }
 
     /**
@@ -38,9 +42,7 @@ class PlacesController extends Controller
             'category'    => 'nullable|string|max:100',
         ]);
 
-        $place = Place::create($validated);
-
-        return response()->json($place, 201);
+        return response()->json($this->placeService->createPlace($validated), 201);
     }
 
     /**
@@ -49,12 +51,6 @@ class PlacesController extends Controller
     public function search(Request $request): JsonResponse
     {
         $query = $request->get('q', '');
-
-        $places = Place::where('name', 'like', "%{$query}%")
-            ->orWhere('description', 'like', "%{$query}%")
-            ->orWhere('category', 'like', "%{$query}%")
-            ->get();
-
-        return response()->json($places);
+        return response()->json($this->placeService->searchPlaces($query));
     }
 }

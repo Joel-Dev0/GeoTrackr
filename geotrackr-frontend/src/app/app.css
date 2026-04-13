@@ -1,11 +1,15 @@
 :host {
   --primary: #4f46e5;
+  --primary-hover: #4338ca;
   --secondary: #0ea5e9;
   --dark: #0f172a;
+  --dark-light: #1e293b;
   --light: #f8fafc;
   --white: #ffffff;
   --text: #334155;
+  --text-light: #94a3b8;
   --success: #10b981;
+  --border: #e2e8f0;
   
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--text);
@@ -16,18 +20,25 @@
 
 .app-container {
   display: flex;
-  flex-direction: column;
   height: 100vh;
+  overflow: hidden;
+  background-color: var(--light);
 }
 
-header {
-  background: var(--white);
-  padding: 1rem 2rem;
+/* Sidebar Styles */
+.sidebar {
+  width: 280px;
+  background-color: var(--white);
+  border-right: 1px solid var(--border);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  flex-direction: column;
+  z-index: 20;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.02);
+}
+
+.sidebar-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .logo {
@@ -37,30 +48,83 @@ header {
 }
 
 .logo .icon {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
 }
 
 .logo h1 {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
   margin: 0;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
 }
 
-.status {
+.sidebar-nav {
+  flex: 1;
+  padding: 1.5rem 1rem;
+}
+
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-nav li {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
   color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebar-nav li:hover {
+  background-color: var(--light);
+  color: var(--primary);
+}
+
+.sidebar-nav li.active {
+  background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+}
+
+.nav-icon {
+  font-size: 1.25rem;
+}
+
+.sidebar-footer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background-color: var(--light);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pulse {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   background: var(--success);
   border-radius: 50%;
   box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
@@ -73,17 +137,95 @@ header {
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
-main {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
+.status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-footer {
-  background: var(--white);
-  padding: 0.75rem 2rem;
-  text-align: center;
+.status-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.status-subtitle {
   font-size: 0.75rem;
-  color: #94a3b8;
-  border-top: 1px solid #e2e8f0;
+  color: var(--success);
+  font-weight: 500;
+}
+
+/* Main Content Styles */
+.content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: var(--white);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  z-index: 10;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  background-color: var(--light);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  width: 400px;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.search-bar:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.search-icon {
+  margin-right: 0.5rem;
+  font-size: 1rem;
+  color: var(--text-light);
+}
+
+.search-bar input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+
+.search-bar input::placeholder {
+  color: var(--text-light);
+}
+
+.user-profile .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.user-profile .avatar:hover {
+  border-color: var(--primary);
+}
+
+.main-content {
+  flex: 1;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
 }

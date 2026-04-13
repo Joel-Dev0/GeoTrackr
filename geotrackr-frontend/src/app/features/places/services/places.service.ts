@@ -8,6 +8,7 @@ export interface Place {
   lat: number;
   lng: number;
   description: string;
+  category?: string;
 }
 
 @Injectable({
