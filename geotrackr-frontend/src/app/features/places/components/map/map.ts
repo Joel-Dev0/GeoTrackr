@@ -46,8 +46,8 @@ export class Map implements AfterViewInit, OnDestroy {
       zoomControl: false // Cleaner look, zoom can be added elsewhere
     });
 
-    // CartoDB Dark Matter Tiles for premium dark mode aesthetics
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // CartoDB Voyager Tiles for an eye-friendly, modern aesthetic
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
     }).addTo(this.map);
