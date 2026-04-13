@@ -1,0 +1,17 @@
+{
+    "name": "geotrackr/backend",
+    "description": "Geolocation tracking API for GeoTrackr built with PHP",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Geotrackr\\Backend\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Joel-Dev0",
+            "email": "giljosedavid686@gmail.com"
+        }
+    ],
+    "require": {}
+}
