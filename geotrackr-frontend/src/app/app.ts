@@ -1,6 +1,7 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Map } from './features/places/components/map/map';
+import { PlacesService } from './features/places/services/places.service';
 
 @Component({
   selector: 'app-root',
@@ -10,5 +11,17 @@ import { Map } from './features/places/components/map/map';
   styleUrl: './app.css'
 })
 export class App {
-  protected readonly title = signal('geotrackr-frontend');
+  private placesService = inject(PlacesService);
+  
+  isSidebarOpen = signal(false);
+
+  toggleSidebar() {
+    this.isSidebarOpen.update(v => !v);
+  }
+
+  onSearch(event: Event) {
+    const query = (event.target as HTMLInputElement).value;
+    this.placesService.searchPlaces(query);
+  }
 }
+

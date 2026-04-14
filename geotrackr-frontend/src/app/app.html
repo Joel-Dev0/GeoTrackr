@@ -1,4 +1,4 @@
-<div class="app-container">
+<div class="app-container" [class.sidebar-open]="isSidebarOpen()">
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-header">
@@ -6,6 +6,8 @@
         <span class="icon">🌍</span>
         <h1>GeoTrackr</h1>
       </div>
+      <!-- Close button on mobile -->
+      <button class="close-sidebar-btn" (click)="toggleSidebar()">✕</button>
     </div>
     
     <nav class="sidebar-nav">
@@ -38,15 +40,23 @@
     </div>
   </aside>
 
+  <!-- Overlay for mobile when sidebar is open -->
+  <div class="sidebar-overlay" (click)="toggleSidebar()"></div>
+
   <!-- Main Content Area -->
   <div class="content-wrapper">
     <header class="topbar">
+      <!-- Hamburger Menu for Mobile -->
+      <button class="hamburger-btn" (click)="toggleSidebar()">
+        ☰
+      </button>
+
       <div class="search-bar">
         <span class="search-icon">🔍</span>
-        <input type="text" placeholder="Search for coordinates or categories...">
+        <input type="text" placeholder="Search places..." (input)="onSearch($event)">
       </div>
       <div class="user-profile">
-        <img src="https://ui-avatars.com/api/?name=Admin&background=4f46e5&color=fff&rounded=true" alt="User Profile" class="avatar">
+        <img src="https://ui-avatars.com/api/?name=Admin&background=4f46e5&color=fff&rounded=true" alt="Admin" class="avatar">
       </div>
     </header>
 

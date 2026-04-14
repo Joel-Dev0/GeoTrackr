@@ -56,8 +56,10 @@ export class Map implements AfterViewInit, OnDestroy {
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
   }
 
+  private currentMarkers: any[] = [];
+
   private loadPlaces() {
-    this.placesService.getPlaces()
+    this.placesService.places$
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (places) => this.addMarkers(places),
@@ -69,6 +71,10 @@ export class Map implements AfterViewInit, OnDestroy {
     const L = this.L;
     if (!this.map || !L) return;
 
+    // Clear existing markers for live search updates
+    this.currentMarkers.forEach(marker => this.map.removeLayer(marker));
+    this.currentMarkers = [];
+
     places.forEach(place => {
       // Create a premium custom HTML marker
       const categoryClass = place.category ? place.category.toLowerCase() : 'general';
@@ -79,7 +85,7 @@ export class Map implements AfterViewInit, OnDestroy {
         iconAnchor: [15, 15]
       });
 
-      L.marker([place.lat, place.lng], { icon: customIcon })
+      const marker = L.marker([place.lat, place.lng], { icon: customIcon })
         .addTo(this.map)
         .bindPopup(`
           <div class="custom-popup">
@@ -88,6 +94,8 @@ export class Map implements AfterViewInit, OnDestroy {
             <p>${place.description || ''}</p>
           </div>
         `, { closeButton: false }); // Remove default close button for cleaner UI
+      
+      this.currentMarkers.push(marker);
     });
   }
 }
