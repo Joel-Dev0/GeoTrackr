@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Map } from './features/places/components/map/map';
 import { PlacesService, Place, TileLayerType, CATEGORIES_LIST } from './features/places/services/places.service';
+import { RoutingService, TravelMode, ActiveRoute } from './features/places/services/routing.service';
 
 @Component({
   selector: 'app-root',
@@ -14,11 +15,13 @@ import { PlacesService, Place, TileLayerType, CATEGORIES_LIST } from './features
 })
 export class App {
   public placesService = inject(PlacesService);
+  public routingService = inject(RoutingService);
   public categories = CATEGORIES_LIST;
   
   isSidebarOpen = signal(false);
   activeTab = signal<'map' | 'saved' | 'settings'>('map');
   isAddPlaceModalOpen = signal(false);
+  isDirectionsExpanded = signal(false);
 
   newPlace = {
     name: '',
@@ -68,6 +71,25 @@ export class App {
   toggleSave(place: Place, event?: Event) {
     if (event) event.stopPropagation();
     this.placesService.toggleSavePlace(place);
+  }
+
+  startNavigation(place: Place, event?: Event) {
+    if (event) event.stopPropagation();
+    this.activeTab.set('map');
+    this.routingService.calculateRoute(place);
+  }
+
+  setRouteMode(mode: TravelMode) {
+    this.routingService.setMode(mode);
+  }
+
+  clearNavigation() {
+    this.routingService.clearRoute();
+    this.isDirectionsExpanded.set(false);
+  }
+
+  toggleDirections() {
+    this.isDirectionsExpanded.update(v => !v);
   }
 
   openAddPlaceModal() {

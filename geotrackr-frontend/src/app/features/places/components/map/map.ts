@@ -1,6 +1,7 @@
 import { Component, AfterViewInit, OnDestroy, ViewChild, ElementRef, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { PlacesService, Place, TileLayerType } from '../../services/places.service';
+import { RoutingService, ActiveRoute } from '../../services/routing.service';
 import { Subject, takeUntil } from 'rxjs';
 
 @Component({
@@ -14,6 +15,7 @@ export class Map implements AfterViewInit, OnDestroy {
   @ViewChild('mapElement', { static: false }) mapElement?: ElementRef<HTMLDivElement>;
 
   public placesService = inject(PlacesService);
+  public routingService = inject(RoutingService);
   private platformId = inject(PLATFORM_ID);
   
   private L: any;
@@ -22,6 +24,10 @@ export class Map implements AfterViewInit, OnDestroy {
   private markersMap: Record<number, any> = {};
   private userMarker?: any;
   private accuracyCircle?: any;
+  private routeGlowLayer?: any;
+  private routeMainLayer?: any;
+  private destMarker?: any;
+  private moveDebounceTimer?: any;
   private destroy$ = new Subject<void>();
 
   public isLocating = false;
@@ -38,6 +44,7 @@ export class Map implements AfterViewInit, OnDestroy {
         this.listenToTileLayer();
         this.listenToPlaces();
         this.listenToSelectedPlace();
+        this.listenToActiveRoute();
 
         // Start map from user's actual location
         this.locateUser(true);
@@ -50,6 +57,9 @@ export class Map implements AfterViewInit, OnDestroy {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.moveDebounceTimer) {
+      clearTimeout(this.moveDebounceTimer);
+    }
     if (this.map) {
       this.map.remove();
       this.map = undefined;
@@ -70,6 +80,9 @@ export class Map implements AfterViewInit, OnDestroy {
     });
 
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
+
+    // Listen to pan & zoom to automatically discover real-world POIs everywhere in the world
+    this.map.on('moveend', () => this.handleMapMoveEnd());
 
     // Initial resize invalidation
     setTimeout(() => {
@@ -121,6 +134,38 @@ export class Map implements AfterViewInit, OnDestroy {
   public viewWorld() {
     if (!this.map) return;
     this.map.flyTo([20, 0], 2, { animate: true, duration: 1.5 });
+  }
+
+  public triggerAreaScan() {
+    if (!this.map) return;
+    const zoom = this.map.getZoom();
+    const b = this.map.getBounds();
+    this.placesService.scanAreaForPlaces({
+      south: b.getSouth(),
+      west: b.getWest(),
+      north: b.getNorth(),
+      east: b.getEast()
+    }, zoom, true);
+  }
+
+  private handleMapMoveEnd(): void {
+    if (!this.map) return;
+    if (this.moveDebounceTimer) {
+      clearTimeout(this.moveDebounceTimer);
+    }
+    this.moveDebounceTimer = setTimeout(() => {
+      if (!this.map) return;
+      const zoom = this.map.getZoom();
+      if (zoom >= 11) {
+        const b = this.map.getBounds();
+        this.placesService.scanAreaForPlaces({
+          south: b.getSouth(),
+          west: b.getWest(),
+          north: b.getNorth(),
+          east: b.getEast()
+        }, zoom);
+      }
+    }, 600);
   }
 
   private renderUserLocation(lat: number, lng: number, accuracy: number) {
@@ -310,25 +355,37 @@ export class Map implements AfterViewInit, OnDestroy {
               📍 ${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}
             </div>
             <div class="popup-actions">
+              <button id="route-btn-${place.id}" class="popup-btn route-btn" title="Navigate to this destination">
+                🚀 Route
+              </button>
               <button id="save-btn-${place.id}" class="popup-btn ${isSaved ? 'saved' : ''}">
-                ${isSaved ? '★ Saved' : '☆ Save Place'}
+                ${isSaved ? '★ Saved' : '☆ Save'}
               </button>
             </div>
           </div>
         `, { closeButton: false, minWidth: 240 });
 
       marker.on('popupopen', () => {
-        const btn = document.getElementById(`save-btn-${place.id}`);
-        if (btn) {
-          btn.onclick = (e) => {
+        const routeBtn = document.getElementById(`route-btn-${place.id}`);
+        if (routeBtn) {
+          routeBtn.onclick = (e) => {
+            e.stopPropagation();
+            marker.closePopup();
+            this.routingService.calculateRoute(place);
+          };
+        }
+
+        const saveBtn = document.getElementById(`save-btn-${place.id}`);
+        if (saveBtn) {
+          saveBtn.onclick = (e) => {
             e.stopPropagation();
             this.placesService.toggleSavePlace(place);
             const savedNow = this.placesService.isPlaceSaved(place.id);
-            btn.innerHTML = savedNow ? '★ Saved' : '☆ Save Place';
+            saveBtn.innerHTML = savedNow ? '★ Saved' : '☆ Save';
             if (savedNow) {
-              btn.classList.add('saved');
+              saveBtn.classList.add('saved');
             } else {
-              btn.classList.remove('saved');
+              saveBtn.classList.remove('saved');
             }
           };
         }
@@ -350,6 +407,97 @@ export class Map implements AfterViewInit, OnDestroy {
         this.map.fitBounds(group.getBounds().pad(0.12));
       } catch (e) {}
     }
+  }
+
+  // --- OSRM Route Visualization ---
+
+  private listenToActiveRoute() {
+    this.routingService.activeRoute$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(route => {
+        this.renderRoute(route);
+      });
+  }
+
+  private renderRoute(route: ActiveRoute | null) {
+    const L = this.L;
+    if (!this.map || !L) return;
+
+    // Clean up existing route layers
+    if (this.routeGlowLayer) {
+      this.map.removeLayer(this.routeGlowLayer);
+      this.routeGlowLayer = undefined;
+    }
+    if (this.routeMainLayer) {
+      this.map.removeLayer(this.routeMainLayer);
+      this.routeMainLayer = undefined;
+    }
+    if (this.destMarker) {
+      this.map.removeLayer(this.destMarker);
+      this.destMarker = undefined;
+    }
+
+    if (!route || !route.coordinates || route.coordinates.length === 0) {
+      return;
+    }
+
+    // Outer Glow Casing (Neon cyan halo)
+    this.routeGlowLayer = L.polyline(route.coordinates, {
+      color: '#0284c7',
+      weight: 10,
+      opacity: 0.45,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(this.map);
+
+    // Main Route Line
+    const isWalking = route.mode === 'walking';
+    this.routeMainLayer = L.polyline(route.coordinates, {
+      color: '#06b6d4',
+      weight: 5,
+      opacity: 0.95,
+      lineCap: 'round',
+      lineJoin: 'round',
+      dashArray: isWalking ? '8, 8' : undefined
+    }).addTo(this.map);
+
+    // Destination Pin (🏁)
+    const destCoords: [number, number] = [route.destination.lat, route.destination.lng];
+    const destIcon = L.divIcon({
+      className: 'custom-leaflet-icon destination-icon',
+      html: `
+        <div class="pulse-marker-wrapper" title="Destination: ${route.destination.name}">
+          <div class="pulse-marker destination">
+            <span class="marker-emoji">🏁</span>
+          </div>
+        </div>
+      `,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
+    });
+
+    this.destMarker = L.marker(destCoords, { icon: destIcon, zIndexOffset: 999 })
+      .addTo(this.map)
+      .bindPopup(`
+        <div class="custom-popup">
+          <div class="popup-header">
+            <span class="category-badge landmark">🏁 DESTINATION</span>
+          </div>
+          <h3 class="popup-title">${route.destination.name}</h3>
+          <p class="popup-description">${route.summary}</p>
+          <div class="popup-coordinates">
+            ⏱️ ${route.durationMin} min &bull; 📏 ${route.distanceKm} km
+          </div>
+        </div>
+      `, { closeButton: false, minWidth: 220 });
+
+    // Automatically fit map bounds to display the whole route
+    try {
+      this.map.fitBounds(this.routeMainLayer.getBounds().pad(0.2), {
+        animate: true,
+        duration: 1.2
+      });
+    } catch (e) {}
   }
 }
 

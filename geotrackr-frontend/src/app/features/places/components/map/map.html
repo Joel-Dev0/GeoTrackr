@@ -1,6 +1,26 @@
 <div class="map-container">
   <div #mapElement id="map"></div>
 
+  <!-- Top Left: Live Global POI Discovery Toolbar -->
+  <div class="map-poi-toolbar">
+    <button
+      class="poi-scan-btn"
+      [class.scanning]="placesService.isScanningArea$ | async"
+      (click)="triggerAreaScan()"
+      title="Scan this area for real-world hospitals, schools, parks, restaurants, churches and attractions">
+      <span class="scan-icon" *ngIf="!(placesService.isScanningArea$ | async)">🔍</span>
+      <span class="scan-spinner" *ngIf="placesService.isScanningArea$ | async"></span>
+      <span class="scan-label">{{ (placesService.isScanningArea$ | async) ? 'Scanning World POIs...' : 'Scan This Area' }}</span>
+      <span class="scan-count-badge" *ngIf="placesService.discoveredCount$ | async as count">
+        {{ count }} places
+      </span>
+    </button>
+    <div class="poi-status-tooltip" *ngIf="placesService.lastScanMessage$ | async as msg">
+      {{ msg }}
+    </div>
+  </div>
+
+  <!-- Top Right: Navigation & Position Controls -->
   <div class="map-floating-controls">
     <button
       class="map-ctrl-btn"

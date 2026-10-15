@@ -110,6 +110,116 @@
         <div class="map-view-wrapper">
           <app-map></app-map>
 
+          <!-- Route Calculating Indicator -->
+          @if (routingService.isCalculating$ | async) {
+            <div class="nav-calculating-pill glass-panel">
+              <span class="calculating-spinner"></span>
+              <span>Calculating fastest & safest route...</span>
+            </div>
+          }
+
+          <!-- Route Error Banner -->
+          @if (routingService.routeError$ | async; as err) {
+            <div class="nav-error-pill glass-panel">
+              <span>⚠️ {{ err }}</span>
+              <button class="close-pill-btn" (click)="clearNavigation()">✕</button>
+            </div>
+          }
+
+          <!-- Navigation HUD Card (Interactive turn-by-turn guidance) -->
+          @if (routingService.activeRoute$ | async; as route) {
+            <div class="navigation-hud glass-panel" [class.expanded]="isDirectionsExpanded()">
+              <div class="nav-hud-header">
+                <div class="nav-hud-destination">
+                  <span class="nav-dest-icon">🏁</span>
+                  <div class="nav-dest-info">
+                    <span class="nav-route-badge">OPTIMIZED & SAFE ROUTE</span>
+                    <h4 class="nav-dest-name">{{ route.destination.name }}</h4>
+                  </div>
+                </div>
+                <button class="nav-close-btn" (click)="clearNavigation()" title="Exit Navigation">✕</button>
+              </div>
+
+              <!-- Travel Mode Selector -->
+              <div class="nav-mode-selector">
+                <button
+                  class="nav-mode-btn"
+                  [class.active]="route.mode === 'driving'"
+                  (click)="setRouteMode('driving')"
+                  title="Driving: Fastest route via verified primary corridors">
+                  <span class="mode-icon">🚗</span>
+                  <span class="mode-text">Drive</span>
+                </button>
+                <button
+                  class="nav-mode-btn"
+                  [class.active]="route.mode === 'walking'"
+                  (click)="setRouteMode('walking')"
+                  title="Walking: Safest pedestrian paths, lighted sidewalks & crosswalks">
+                  <span class="mode-icon">🚶</span>
+                  <span class="mode-text">Walk</span>
+                </button>
+                <button
+                  class="nav-mode-btn"
+                  [class.active]="route.mode === 'cycling'"
+                  (click)="setRouteMode('cycling')"
+                  title="Cycling: Dedicated bike lanes & low-traffic streets">
+                  <span class="mode-icon">🚲</span>
+                  <span class="mode-text">Bike</span>
+                </button>
+              </div>
+
+              <!-- Route Metrics Banner -->
+              <div class="nav-metrics-row">
+                <div class="nav-metric-box eta-box">
+                  <span class="metric-label">Estimated Time</span>
+                  <span class="metric-value">{{ route.durationMin }} <small>min</small></span>
+                </div>
+                <div class="nav-metric-divider"></div>
+                <div class="nav-metric-box dist-box">
+                  <span class="metric-label">Total Distance</span>
+                  <span class="metric-value">{{ route.distanceKm }} <small>km</small></span>
+                </div>
+                <div class="nav-metric-divider"></div>
+                <div class="nav-metric-box origin-box">
+                  <span class="metric-label">Departing From</span>
+                  <span class="metric-value small-text">{{ route.origin.name }}</span>
+                </div>
+              </div>
+
+              <!-- Safety & Optimization Banner -->
+              <div class="nav-safety-banner">
+                <span class="safety-icon">🛡️</span>
+                <span class="safety-text">{{ route.safetyMessage }}</span>
+              </div>
+
+              <!-- Turn-by-Turn Expand Button -->
+              <div class="nav-actions-row">
+                <button class="nav-steps-toggle-btn" (click)="toggleDirections()">
+                  <span>{{ isDirectionsExpanded() ? '▲ Hide Turn Directions' : '▼ View ' + route.steps.length + ' Route Steps' }}</span>
+                </button>
+              </div>
+
+              <!-- Collapsible Turn-by-Turn Step List -->
+              @if (isDirectionsExpanded()) {
+                <div class="nav-steps-list">
+                  @for (step of route.steps; track $index) {
+                    <div class="nav-step-item" [class.step-arrive]="$index === route.steps.length - 1">
+                      <span class="step-icon">{{ step.icon }}</span>
+                      <div class="step-details">
+                        <span class="step-instruction">{{ step.instruction }}</span>
+                        @if (step.distanceMeters > 0) {
+                          <span class="step-meta">
+                            {{ step.distanceMeters > 1000 ? (step.distanceMeters / 1000).toFixed(1) + ' km' : step.distanceMeters + ' m' }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
           <!-- Selected Place Floating Card -->
           @if (placesService.selectedPlace$ | async; as selected) {
             <div class="selected-card glass-panel">
@@ -125,8 +235,11 @@
                 <span>📍 {{ selected.lat.toFixed(4) }}, {{ selected.lng.toFixed(4) }}</span>
               </div>
               <div class="card-buttons">
+                <button class="navigate-card-btn" (click)="startNavigation(selected)">
+                  🚀 Get Route
+                </button>
                 <button class="save-toggle-btn" [class.is-saved]="placesService.isPlaceSaved(selected.id)" (click)="toggleSave(selected)">
-                  {{ placesService.isPlaceSaved(selected.id) ? '★ Saved to Favorites' : '☆ Save Place' }}
+                  {{ placesService.isPlaceSaved(selected.id) ? '★ Saved' : '☆ Save' }}
                 </button>
               </div>
             </div>
@@ -167,9 +280,9 @@
                     </div>
                     <h4>{{ place.name }}</h4>
                     <p class="desc">{{ place.description }}</p>
-                    <div class="coordinates">📍 {{ place.lat.toFixed(4) }}, {{ place.lng.toFixed(4) }}</div>
                     <div class="place-card-footer">
-                      <button class="fly-btn" (click)="flyToPlace(place)">Locate on Map ✈️</button>
+                      <button class="nav-fav-btn" (click)="startNavigation(place, $event)">Navigate 🚀</button>
+                      <button class="fly-btn" (click)="flyToPlace(place)">Locate ✈️</button>
                     </div>
                   </div>
                 }

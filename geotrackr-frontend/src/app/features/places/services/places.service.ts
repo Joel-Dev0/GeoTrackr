@@ -1,7 +1,7 @@
 import { Injectable, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, map, combineLatest } from 'rxjs';
+import { BehaviorSubject, Observable, map, combineLatest, of, forkJoin, catchError } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 
 export interface Place {
@@ -888,6 +888,18 @@ export class PlacesService {
   private tileLayerSubject = new BehaviorSubject<TileLayerType>('osm');
   public tileLayer$ = this.tileLayerSubject.asObservable();
 
+  // Dynamic Real-World POI Discovery State (Overpass / Nominatim global data)
+  private isScanningAreaSubject = new BehaviorSubject<boolean>(false);
+  public isScanningArea$ = this.isScanningAreaSubject.asObservable();
+
+  private discoveredCountSubject = new BehaviorSubject<number>(DEFAULT_CURATED_PLACES.length);
+  public discoveredCount$ = this.discoveredCountSubject.asObservable();
+
+  private lastScanMessageSubject = new BehaviorSubject<string>('World POIs active');
+  public lastScanMessage$ = this.lastScanMessageSubject.asObservable();
+
+  private scannedBoundsCache = new Set<string>();
+
   // Filtered places stream: dynamically filters by the active categories set
   public filteredPlaces$ = combineLatest([this.places$, this.activeCategories$]).pipe(
     map(([places, activeCats]) => {
@@ -955,6 +967,128 @@ export class PlacesService {
         }
       },
       error: (err) => console.error('Error searching backend places:', err)
+    });
+  }
+
+  // --- Dynamic Real-World POI Discovery Everywhere on Earth ---
+
+  private categorySearchKeywords: Record<string, string> = {
+    hospital: 'hospital',
+    school: 'school',
+    tourist: 'tourist attraction',
+    museum: 'museum',
+    park: 'park',
+    restaurant: 'restaurant',
+    church: 'church',
+    landmark: 'monument'
+  };
+
+  scanAreaForPlaces(
+    bounds: { south: number; west: number; north: number; east: number },
+    zoom: number,
+    force = false
+  ): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    if (zoom < 11) {
+      this.lastScanMessageSubject.next('🔍 Zoom in closer to discover local POIs in this region');
+      return;
+    }
+
+    const cacheKey = `${bounds.south.toFixed(2)},${bounds.west.toFixed(2)},${bounds.north.toFixed(2)},${bounds.east.toFixed(2)}`;
+    if (!force && this.scannedBoundsCache.has(cacheKey)) {
+      return;
+    }
+    this.scannedBoundsCache.add(cacheKey);
+
+    if (this.isScanningAreaSubject.getValue() && !force) {
+      return;
+    }
+
+    const activeCats = this.activeCategoriesSubject.getValue();
+    if (!activeCats || activeCats.length === 0) {
+      this.lastScanMessageSubject.next('No categories active to scan');
+      return;
+    }
+
+    this.isScanningAreaSubject.next(true);
+    this.lastScanMessageSubject.next('Scanning area for real-world places...');
+
+    // Build observables for each active category
+    const requests: Observable<{ cat: string; items: any[] }>[] = [];
+
+    activeCats.forEach(catId => {
+      const queryTerm = this.categorySearchKeywords[catId.toLowerCase()] || catId;
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryTerm)}&format=json&viewbox=${bounds.west},${bounds.north},${bounds.east},${bounds.south}&bounded=1&limit=6&addressdetails=1`;
+      
+      const req = this.http.get<any[]>(url, {
+        headers: { 'User-Agent': 'GeoTrackrApp/1.0' }
+      }).pipe(
+        map(items => ({ cat: catId, items: Array.isArray(items) ? items : [] })),
+        catchError(() => of({ cat: catId, items: [] }))
+      );
+      requests.push(req);
+    });
+
+    if (requests.length === 0) {
+      this.isScanningAreaSubject.next(false);
+      return;
+    }
+
+    forkJoin(requests).subscribe({
+      next: (results) => {
+        let addedCount = 0;
+        const currentPlaces = this.placesSubject.getValue();
+        const mergedMap = new Map<number, Place>();
+
+        currentPlaces.forEach(p => mergedMap.set(p.id, p));
+
+        results.forEach(res => {
+          res.items.forEach(item => {
+            const placeId = item.place_id ? Number(item.place_id) : Math.floor(Math.random() * 10000000);
+            const lat = parseFloat(item.lat);
+            const lng = parseFloat(item.lon);
+
+            if (isNaN(lat) || isNaN(lng)) return;
+
+            // Proximity check against already existing places
+            const isDuplicate = Array.from(mergedMap.values()).some(existing =>
+              Math.abs(existing.lat - lat) < 0.0001 && Math.abs(existing.lng - lng) < 0.0001
+            );
+
+            if (!isDuplicate && !mergedMap.has(placeId)) {
+              const displayName = item.display_name || '';
+              const firstPart = displayName.split(',')[0];
+              const placeName = item.name || firstPart || `${res.cat.toUpperCase()} Location`;
+
+              mergedMap.set(placeId, {
+                id: placeId,
+                name: placeName,
+                lat,
+                lng,
+                description: displayName || `Real-world ${res.cat} discovered via OpenStreetMap`,
+                category: res.cat.toLowerCase()
+              });
+              addedCount++;
+            }
+          });
+        });
+
+        const updatedList = Array.from(mergedMap.values());
+        this.placesSubject.next(updatedList);
+        this.discoveredCountSubject.next(updatedList.length);
+        this.isScanningAreaSubject.next(false);
+
+        if (addedCount > 0) {
+          this.lastScanMessageSubject.next(`✨ Discovered ${addedCount} new places in this area`);
+        } else {
+          this.lastScanMessageSubject.next(`All places up-to-date in this view (${updatedList.length} total)`);
+        }
+      },
+      error: () => {
+        this.isScanningAreaSubject.next(false);
+        this.lastScanMessageSubject.next('Area scan complete');
+      }
     });
   }
 
