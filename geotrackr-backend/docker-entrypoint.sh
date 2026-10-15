@@ -26,6 +26,9 @@ mkdir -p /var/www/html/storage/framework/cache/data \
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Discover packages now that runtime environment variables are loaded
+php artisan package:discover --ansi || true
+
 # Run database migrations and seeders
 php artisan migrate --force --ansi || true
 php artisan db:seed --force --ansi || true
