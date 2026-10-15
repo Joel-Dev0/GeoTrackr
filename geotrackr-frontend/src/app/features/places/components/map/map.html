@@ -1,3 +1,11 @@
 <div class="map-container">
   <div #mapElement id="map"></div>
+  <button
+    class="locate-btn"
+    (click)="locateUser()"
+    [class.locating]="isLocating"
+    [title]="isLocating ? 'Locating...' : 'Go to my location'">
+    <span class="locate-icon" *ngIf="!isLocating">🎯</span>
+    <span class="locate-spinner" *ngIf="isLocating"></span>
+  </button>
 </div>

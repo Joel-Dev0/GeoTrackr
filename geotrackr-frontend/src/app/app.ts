@@ -63,6 +63,11 @@ export class App {
   }
 
   openAddPlaceModal() {
+    const userLoc = this.placesService.getUserLocation();
+    if (userLoc) {
+      this.newPlace.lat = Number(userLoc[0].toFixed(5));
+      this.newPlace.lng = Number(userLoc[1].toFixed(5));
+    }
     this.isAddPlaceModalOpen.set(true);
     this.submitSuccess.set(false);
   }

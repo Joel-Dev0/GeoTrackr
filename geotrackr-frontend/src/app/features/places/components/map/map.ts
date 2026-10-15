@@ -1,11 +1,12 @@
 import { Component, AfterViewInit, OnDestroy, ViewChild, ElementRef, inject, PLATFORM_ID } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { PlacesService, Place, TileLayerType } from '../../services/places.service';
 import { Subject, takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-map',
   standalone: true,
+  imports: [CommonModule],
   templateUrl: './map.html',
   styleUrl: './map.css',
 })
@@ -19,7 +20,13 @@ export class Map implements AfterViewInit, OnDestroy {
   private map?: any;
   private currentTileLayer?: any;
   private markersMap: Record<number, any> = {};
+  private userMarker?: any;
+  private accuracyCircle?: any;
   private destroy$ = new Subject<void>();
+
+  public isLocating = false;
+  private hasCenteredOnUser = false;
+  private currentPlaces: Place[] = [];
 
   async ngAfterViewInit() {
     if (isPlatformBrowser(this.platformId)) {
@@ -31,6 +38,9 @@ export class Map implements AfterViewInit, OnDestroy {
         this.listenToTileLayer();
         this.listenToPlaces();
         this.listenToSelectedPlace();
+
+        // Start map from user's actual location
+        this.locateUser(true);
       } catch (err) {
         console.error('Failed to initialize Leaflet map:', err);
       }
@@ -51,10 +61,10 @@ export class Map implements AfterViewInit, OnDestroy {
     if (!L) return;
 
     const container = this.mapElement?.nativeElement || 'map';
-    const center: [number, number] = [4.6243, -74.0750]; // Center over Bogotá highlights
+    const fallbackCenter: [number, number] = [4.6243, -74.0750]; // Default fallback
     
     this.map = L.map(container, {
-      center: center,
+      center: fallbackCenter,
       zoom: 13,
       zoomControl: false
     });
@@ -65,6 +75,110 @@ export class Map implements AfterViewInit, OnDestroy {
     setTimeout(() => {
       this.map?.invalidateSize();
     }, 250);
+  }
+
+  public locateUser(isInitial = false) {
+    if (!isPlatformBrowser(this.platformId) || !navigator.geolocation) {
+      if (isInitial) {
+        this.fitToPlaces();
+      }
+      return;
+    }
+
+    this.isLocating = true;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        this.isLocating = false;
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const accuracy = pos.coords.accuracy || 100;
+
+        this.placesService.setUserLocation(lat, lng);
+        this.renderUserLocation(lat, lng, accuracy);
+
+        this.hasCenteredOnUser = true;
+        if (this.map) {
+          const targetZoom = Math.max(this.map.getZoom(), 15);
+          this.map.flyTo([lat, lng], targetZoom, { animate: true, duration: 1.4 });
+        }
+      },
+      (err) => {
+        this.isLocating = false;
+        console.warn('Geolocation unavailable or denied:', err.message);
+        if (isInitial) {
+          this.fitToPlaces();
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000
+      }
+    );
+  }
+
+  private renderUserLocation(lat: number, lng: number, accuracy: number) {
+    const L = this.L;
+    if (!this.map || !L) return;
+
+    if (this.userMarker) {
+      this.map.removeLayer(this.userMarker);
+    }
+    if (this.accuracyCircle) {
+      this.map.removeLayer(this.accuracyCircle);
+    }
+
+    // Accuracy Circle
+    this.accuracyCircle = L.circle([lat, lng], {
+      radius: Math.min(accuracy, 800),
+      color: '#3b82f6',
+      fillColor: '#3b82f6',
+      fillOpacity: 0.12,
+      weight: 1.5,
+      dashArray: '4, 4'
+    }).addTo(this.map);
+
+    // Glowing User Location Pulse Marker
+    const userIcon = L.divIcon({
+      className: 'custom-leaflet-icon user-icon',
+      html: `
+        <div class="pulse-marker-wrapper" title="You are here">
+          <div class="pulse-marker user-location">
+            <span class="marker-emoji">🧭</span>
+          </div>
+        </div>
+      `,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
+    });
+
+    this.userMarker = L.marker([lat, lng], { icon: userIcon, zIndexOffset: 1000 })
+      .addTo(this.map)
+      .bindPopup(`
+        <div class="custom-popup user-popup">
+          <div class="popup-header">
+            <span class="category-badge user-badge">📍 YOUR CURRENT LOCATION</span>
+          </div>
+          <h3 class="popup-title">You are here</h3>
+          <p class="popup-description">Map centered on your current device position.</p>
+          <div class="popup-coordinates">
+            📍 ${lat.toFixed(5)}, ${lng.toFixed(5)} (±${Math.round(accuracy)}m)
+          </div>
+        </div>
+      `, { closeButton: false, minWidth: 220 });
+  }
+
+  private fitToPlaces() {
+    const L = this.L;
+    if (!this.map || !L) return;
+    const markers = Object.values(this.markersMap);
+    if (markers.length > 0) {
+      try {
+        const group = L.featureGroup(markers);
+        this.map.fitBounds(group.getBounds().pad(0.12));
+      } catch (e) {}
+    }
   }
 
   private listenToTileLayer() {
@@ -145,6 +259,8 @@ export class Map implements AfterViewInit, OnDestroy {
     const L = this.L;
     if (!this.map || !L) return;
 
+    this.currentPlaces = places;
+
     // Remove existing markers
     Object.values(this.markersMap).forEach(marker => this.map.removeLayer(marker));
     this.markersMap = {};
@@ -218,12 +334,21 @@ export class Map implements AfterViewInit, OnDestroy {
       markerList.push(marker);
     });
 
-    // Auto-fit map bounds to markers if we have markers
+    // Auto-fit map bounds ONLY if user explicitly filtered a category or if we haven't centered on user
+    const activeCategory = this.placesService.getActiveCategory();
     if (markerList.length > 0) {
-      try {
-        const group = L.featureGroup(markerList);
-        this.map.fitBounds(group.getBounds().pad(0.12));
-      } catch (e) {}
+      if (activeCategory !== 'all') {
+        try {
+          const group = L.featureGroup(markerList);
+          this.map.fitBounds(group.getBounds().pad(0.12));
+        } catch (e) {}
+      } else if (!this.hasCenteredOnUser && !this.isLocating) {
+        try {
+          const group = L.featureGroup(markerList);
+          this.map.fitBounds(group.getBounds().pad(0.12));
+        } catch (e) {}
+      }
     }
   }
 }
+

@@ -173,6 +173,10 @@ export class PlacesService {
   private savedPlacesSubject = new BehaviorSubject<Place[]>([]);
   public savedPlaces$ = this.savedPlacesSubject.asObservable();
 
+  // User live geolocation state
+  private userLocationSubject = new BehaviorSubject<[number, number] | null>(null);
+  public userLocation$ = this.userLocationSubject.asObservable();
+
   // Active map tile layer preference
   private tileLayerSubject = new BehaviorSubject<TileLayerType>('osm');
   public tileLayer$ = this.tileLayerSubject.asObservable();
@@ -253,6 +257,18 @@ export class PlacesService {
     this.activeCategorySubject.next(category);
     // Trigger map update through category change
     this.placesSubject.next(this.placesSubject.getValue());
+  }
+
+  getActiveCategory(): string {
+    return this.activeCategorySubject.getValue();
+  }
+
+  setUserLocation(lat: number, lng: number): void {
+    this.userLocationSubject.next([lat, lng]);
+  }
+
+  getUserLocation(): [number, number] | null {
+    return this.userLocationSubject.getValue();
   }
 
   selectPlace(place: Place | null): void {
