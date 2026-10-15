@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, OnDestroy, inject, PLATFORM_ID } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, ViewChild, ElementRef, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { PlacesService, Place } from '../../services/places.service';
 import { Subject, takeUntil } from 'rxjs';
@@ -10,20 +10,28 @@ import { Subject, takeUntil } from 'rxjs';
   styleUrl: './map.css',
 })
 export class Map implements AfterViewInit, OnDestroy {
+  @ViewChild('mapElement', { static: false }) mapElement?: ElementRef<HTMLDivElement>;
+
   private placesService = inject(PlacesService);
   private platformId = inject(PLATFORM_ID);
   
   private L: any;
   private map?: any;
+  private currentMarkers: any[] = [];
   private destroy$ = new Subject<void>();
 
   async ngAfterViewInit() {
-    // Leaflet needs the DOM, so it must run in the browser
     if (isPlatformBrowser(this.platformId)) {
-      // Dynamically import Leaflet to avoid SSR "window is not defined" error
-      this.L = await import('leaflet');
-      this.initMap();
-      this.loadPlaces();
+      try {
+        const leafletModule: any = await import('leaflet');
+        // Handle CommonJS / ES Module interop where Leaflet is under .default
+        this.L = leafletModule.default?.map ? leafletModule.default : (leafletModule.default || leafletModule);
+
+        this.initMap();
+        this.loadPlaces();
+      } catch (err) {
+        console.error('Failed to initialize Leaflet map:', err);
+      }
     }
   }
 
@@ -32,31 +40,37 @@ export class Map implements AfterViewInit, OnDestroy {
     this.destroy$.complete();
     if (this.map) {
       this.map.remove();
+      this.map = undefined;
     }
   }
 
   private initMap() {
     const L = this.L;
-    // Default coordinates (Bogotá center)
+    if (!L) return;
+
+    const container = this.mapElement?.nativeElement || 'map';
     const center: [number, number] = [4.6097, -74.0817];
     
-    this.map = L.map('map', {
+    this.map = L.map(container, {
       center: center,
       zoom: 13,
-      zoomControl: false // Cleaner look, zoom can be added elsewhere
+      zoomControl: false
     });
 
     // CartoDB Voyager Tiles for an eye-friendly, modern aesthetic
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
+      subdomains: 'abcd',
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
     }).addTo(this.map);
     
-    // Add zoom control to bottom right so it doesn't clash with our layout
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
-  }
 
-  private currentMarkers: any[] = [];
+    // Ensure map tiles render properly inside animated/flex containers
+    setTimeout(() => {
+      this.map?.invalidateSize();
+    }, 250);
+  }
 
   private loadPlaces() {
     this.placesService.places$
@@ -75,8 +89,9 @@ export class Map implements AfterViewInit, OnDestroy {
     this.currentMarkers.forEach(marker => this.map.removeLayer(marker));
     this.currentMarkers = [];
 
+    if (!places || places.length === 0) return;
+
     places.forEach(place => {
-      // Create a premium custom HTML marker
       const categoryClass = place.category ? place.category.toLowerCase() : 'general';
       const customIcon = L.divIcon({
         className: 'custom-leaflet-icon',
@@ -93,9 +108,19 @@ export class Map implements AfterViewInit, OnDestroy {
             <h3>${place.name}</h3>
             <p>${place.description || ''}</p>
           </div>
-        `, { closeButton: false }); // Remove default close button for cleaner UI
+        `, { closeButton: false });
       
       this.currentMarkers.push(marker);
     });
+
+    // Automatically fit the map view to show all place markers
+    if (this.currentMarkers.length > 0) {
+      try {
+        const group = L.featureGroup(this.currentMarkers);
+        this.map.fitBounds(group.getBounds().pad(0.15));
+      } catch (e) {
+        console.warn('Could not fit bounds to places:', e);
+      }
+    }
   }
 }
