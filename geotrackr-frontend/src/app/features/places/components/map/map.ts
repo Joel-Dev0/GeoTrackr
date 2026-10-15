@@ -57,11 +57,10 @@ export class Map implements AfterViewInit, OnDestroy {
       zoomControl: false
     });
 
-    // CartoDB Voyager Tiles for an eye-friendly, modern aesthetic
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    // OpenStreetMap tiles - Free, public, no API key required
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: 'abcd',
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
     }).addTo(this.map);
     
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
