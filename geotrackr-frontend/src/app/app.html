@@ -6,21 +6,23 @@
         <span class="icon">🌍</span>
         <h1>GeoTrackr</h1>
       </div>
-      <!-- Close button on mobile -->
       <button class="close-sidebar-btn" (click)="toggleSidebar()">✕</button>
     </div>
     
     <nav class="sidebar-nav">
       <ul>
-        <li class="active">
+        <li [class.active]="activeTab() === 'map'" (click)="setTab('map')">
           <span class="nav-icon">🗺️</span>
           Live Map
         </li>
-        <li>
-          <span class="nav-icon">📍</span>
+        <li [class.active]="activeTab() === 'saved'" (click)="setTab('saved')">
+          <span class="nav-icon">⭐</span>
           Saved Places
+          @if ((placesService.savedPlaces$ | async)?.length; as savedCount) {
+            <span class="badge">{{ savedCount }}</span>
+          }
         </li>
-        <li>
+        <li [class.active]="activeTab() === 'settings'" (click)="setTab('settings')">
           <span class="nav-icon">⚙️</span>
           Settings
         </li>
@@ -34,7 +36,7 @@
         </div>
         <div class="status-text">
           <span class="status-title">System Status</span>
-          <span class="status-subtitle">API Online & Encrypted</span>
+          <span class="status-subtitle">Backend Live & Connected</span>
         </div>
       </div>
     </div>
@@ -46,24 +48,246 @@
   <!-- Main Content Area -->
   <div class="content-wrapper">
     <header class="topbar">
-      <!-- Hamburger Menu for Mobile -->
-      <button class="hamburger-btn" (click)="toggleSidebar()">
-        ☰
-      </button>
+      <button class="hamburger-btn" (click)="toggleSidebar()">☰</button>
 
       <div class="search-bar">
         <span class="search-icon">🔍</span>
-        <input type="text" placeholder="Search places..." (input)="onSearch($event)">
+        <input type="text" placeholder="Search tourist zones, restaurants, parks, churches..." (input)="onSearch($event)">
       </div>
-      <div class="user-profile">
-        <img src="https://ui-avatars.com/api/?name=Admin&background=4f46e5&color=fff&rounded=true" alt="Admin" class="avatar">
+
+      <div class="topbar-actions">
+        <button class="add-place-btn" (click)="openAddPlaceModal()">
+          <span class="plus-icon">+</span> Add Place
+        </button>
+        <div class="user-profile">
+          <img src="https://ui-avatars.com/api/?name=Admin&background=4f46e5&color=fff&rounded=true" alt="Admin" class="avatar">
+        </div>
       </div>
     </header>
 
+    <!-- Category Tabs (Visible when Map is active) -->
+    @if (activeTab() === 'map') {
+      <div class="category-tabs-bar">
+        <button class="cat-pill" [class.active]="activeCategory() === 'all'" (click)="setCategory('all')">
+          🌟 All Points
+        </button>
+        <button class="cat-pill" [class.active]="activeCategory() === 'tourist'" (click)="setCategory('tourist')">
+          🏛️ Tourist Zones & Landmarks
+        </button>
+        <button class="cat-pill" [class.active]="activeCategory() === 'restaurant'" (click)="setCategory('restaurant')">
+          🍽️ Restaurants & Dining
+        </button>
+        <button class="cat-pill" [class.active]="activeCategory() === 'park'" (click)="setCategory('park')">
+          🌳 Parks & Nature
+        </button>
+        <button class="cat-pill" [class.active]="activeCategory() === 'church'" (click)="setCategory('church')">
+          ⛪ Churches & Heritage
+        </button>
+      </div>
+    }
+
+    <!-- Main View Switcher -->
     <main class="main-content">
-      <app-map></app-map>
+      <!-- 1. LIVE MAP VIEW -->
+      @if (activeTab() === 'map') {
+        <div class="map-view-wrapper">
+          <app-map></app-map>
+
+          <!-- Selected Place Floating Card -->
+          @if (placesService.selectedPlace$ | async; as selected) {
+            <div class="selected-card glass-panel">
+              <div class="card-top">
+                <span class="category-tag {{ selected.category }}">
+                  {{ (selected.category || 'Point').toUpperCase() }}
+                </span>
+                <button class="card-close-btn" (click)="placesService.selectPlace(null)">✕</button>
+              </div>
+              <h3 class="card-title">{{ selected.name }}</h3>
+              <p class="card-desc">{{ selected.description }}</p>
+              <div class="card-meta">
+                <span>📍 {{ selected.lat.toFixed(4) }}, {{ selected.lng.toFixed(4) }}</span>
+              </div>
+              <div class="card-buttons">
+                <button class="save-toggle-btn" [class.is-saved]="placesService.isPlaceSaved(selected.id)" (click)="toggleSave(selected)">
+                  {{ placesService.isPlaceSaved(selected.id) ? '★ Saved to Favorites' : '☆ Save Place' }}
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- 2. SAVED PLACES VIEW -->
+      @if (activeTab() === 'saved') {
+        <div class="saved-view-wrapper">
+          <div class="view-header">
+            <div>
+              <h2>⭐ Saved Points of Interest</h2>
+              <p>Your personal bookmarked locations, attractions, and places to visit.</p>
+            </div>
+            @if ((placesService.savedPlaces$ | async)?.length) {
+              <button class="clear-btn" (click)="placesService.clearAllSavedPlaces()">Clear All</button>
+            }
+          </div>
+
+          @if (placesService.savedPlaces$ | async; as savedList) {
+            @if (savedList.length === 0) {
+              <div class="empty-state glass-panel">
+                <span class="empty-icon">📍</span>
+                <h3>No saved places yet</h3>
+                <p>Browse the Live Map and click <strong>"Save Place"</strong> on any landmark, restaurant, park, or church to bookmark it here!</p>
+                <button class="primary-btn" (click)="setTab('map')">Explore Map</button>
+              </div>
+            } @else {
+              <div class="places-grid">
+                @for (place of savedList; track place.id) {
+                  <div class="place-card glass-panel">
+                    <div class="place-card-header">
+                      <span class="category-tag {{ place.category }}">
+                        {{ (place.category || 'Point').toUpperCase() }}
+                      </span>
+                      <button class="remove-fav-btn" title="Remove from saved" (click)="toggleSave(place, $event)">✕</button>
+                    </div>
+                    <h4>{{ place.name }}</h4>
+                    <p class="desc">{{ place.description }}</p>
+                    <div class="coordinates">📍 {{ place.lat.toFixed(4) }}, {{ place.lng.toFixed(4) }}</div>
+                    <div class="place-card-footer">
+                      <button class="fly-btn" (click)="flyToPlace(place)">Locate on Map ✈️</button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          }
+        </div>
+      }
+
+      <!-- 3. SETTINGS VIEW -->
+      @if (activeTab() === 'settings') {
+        <div class="settings-view-wrapper">
+          <div class="view-header">
+            <h2>⚙️ Application Settings</h2>
+            <p>Customize map style, data preferences, and connectivity options.</p>
+          </div>
+
+          <div class="settings-grid">
+            <!-- Map Layers -->
+            <div class="settings-card glass-panel">
+              <h3>🗺️ Map Basemap Layer</h3>
+              <p>Choose your preferred map styling and provider:</p>
+              
+              <div class="tile-options">
+                <label class="tile-option-card" [class.selected]="(placesService.tileLayer$ | async) === 'osm'">
+                  <input type="radio" name="tileLayer" value="osm" [checked]="(placesService.tileLayer$ | async) === 'osm'" (change)="placesService.setTileLayer('osm')">
+                  <div>
+                    <strong>OpenStreetMap Standard</strong>
+                    <span>Clean, high-detail open street cartography (Default)</span>
+                  </div>
+                </label>
+
+                <label class="tile-option-card" [class.selected]="(placesService.tileLayer$ | async) === 'esri'">
+                  <input type="radio" name="tileLayer" value="esri" [checked]="(placesService.tileLayer$ | async) === 'esri'" (change)="placesService.setTileLayer('esri')">
+                  <div>
+                    <strong>Esri World Imagery (Satellite)</strong>
+                    <span>High-resolution orbital satellite photography</span>
+                  </div>
+                </label>
+
+                <label class="tile-option-card" [class.selected]="(placesService.tileLayer$ | async) === 'topo'">
+                  <input type="radio" name="tileLayer" value="topo" [checked]="(placesService.tileLayer$ | async) === 'topo'" (change)="placesService.setTileLayer('topo')">
+                  <div>
+                    <strong>Esri Topographic</strong>
+                    <span>Physical contours, mountains, elevation and landmarks</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Backend Information -->
+            <div class="settings-card glass-panel">
+              <h3>⚡ Live Backend API</h3>
+              <p>Your API service status on Render:</p>
+              <div class="backend-info">
+                <div class="info-row">
+                  <span>Endpoint URL:</span>
+                  <a href="https://geotrackr-y9fc.onrender.com/api/places" target="_blank">https://geotrackr-y9fc.onrender.com/api/places</a>
+                </div>
+                <div class="info-row">
+                  <span>Health Check:</span>
+                  <a href="https://geotrackr-y9fc.onrender.com/up" target="_blank">https://geotrackr-y9fc.onrender.com/up</a>
+                </div>
+                <div class="info-row">
+                  <span>Status:</span>
+                  <span class="status-live">● Operational (200 OK)</span>
+                </div>
+              </div>
+              <button class="secondary-btn" (click)="placesService.loadAllPlaces()">Sync Backend Places</button>
+            </div>
+          </div>
+        </div>
+      }
     </main>
   </div>
 </div>
+
+<!-- Modal: Add New Place -->
+@if (isAddPlaceModalOpen()) {
+  <div class="modal-backdrop" (click)="closeAddPlaceModal()">
+    <div class="modal-box glass-panel" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>📍 Add New Interest Point</h3>
+        <button class="modal-close" (click)="closeAddPlaceModal()">✕</button>
+      </div>
+
+      @if (submitSuccess()) {
+        <div class="success-banner">
+          ✓ Place added successfully! Opening on map...
+        </div>
+      } @else {
+        <form (ngSubmit)="submitNewPlace()" class="modal-form">
+          <div class="form-group">
+            <label>Place Name</label>
+            <input type="text" [(ngModel)]="newPlace.name" name="name" placeholder="e.g. La Candelaria Historic Center" required>
+          </div>
+
+          <div class="form-group">
+            <label>Category</label>
+            <select [(ngModel)]="newPlace.category" name="category">
+              <option value="tourist">🏛️ Tourist Zone</option>
+              <option value="restaurant">🍽️ Restaurant & Gastronomy</option>
+              <option value="park">🌳 Park & Nature</option>
+              <option value="church">⛪ Church & Heritage</option>
+              <option value="landmark">⭐ Landmark & Monument</option>
+              <option value="museum">🎨 Museum & Art</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Latitude</label>
+              <input type="number" step="0.0001" [(ngModel)]="newPlace.lat" name="lat" required>
+            </div>
+            <div class="form-group">
+              <label>Longitude</label>
+              <input type="number" step="0.0001" [(ngModel)]="newPlace.lng" name="lng" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Description</label>
+            <textarea [(ngModel)]="newPlace.description" name="description" rows="3" placeholder="Tell visitors what makes this location special..."></textarea>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" (click)="closeAddPlaceModal()">Cancel</button>
+            <button type="submit" class="btn-submit" [disabled]="isSubmitting() || !newPlace.name">
+              {{ isSubmitting() ? 'Saving to Backend...' : 'Save & Show on Map' }}
+            </button>
+          </div>
+        </form>
+      }
+    </div>
+  </div>
+}
 
 <router-outlet />

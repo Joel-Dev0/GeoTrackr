@@ -10,7 +10,7 @@
     "serve:ssr:geotrackr-frontend": "node dist/geotrackr-frontend/server/server.mjs"
   },
   "private": true,
-  "packageManager": "npm@11.9.0",
+  "packageManager": "pnpm@9.15.9",
   "dependencies": {
     "@angular/common": "^21.2.0",
     "@angular/compiler": "^21.2.0",
