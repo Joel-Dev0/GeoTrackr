@@ -65,25 +65,42 @@
       </div>
     </header>
 
-    <!-- Category Tabs (Visible when Map is active) -->
+    <!-- World Map Category Activation & Filtering Controls -->
     @if (activeTab() === 'map') {
-      <div class="category-tabs-bar">
-        <button class="cat-pill" [class.active]="activeCategory() === 'all'" (click)="setCategory('all')">
-          🌟 All Points
-        </button>
-        <button class="cat-pill" [class.active]="activeCategory() === 'tourist'" (click)="setCategory('tourist')">
-          🏛️ Tourist Zones & Landmarks
-        </button>
-        <button class="cat-pill" [class.active]="activeCategory() === 'restaurant'" (click)="setCategory('restaurant')">
-          🍽️ Restaurants & Dining
-        </button>
-        <button class="cat-pill" [class.active]="activeCategory() === 'park'" (click)="setCategory('park')">
-          🌳 Parks & Nature
-        </button>
-        <button class="cat-pill" [class.active]="activeCategory() === 'church'" (click)="setCategory('church')">
-          ⛪ Churches & Heritage
-        </button>
-      </div>
+      @if (placesService.places$ | async; as allPlaces) {
+        <div class="category-filter-toolbar">
+          <div class="filter-controls-left">
+            <span class="filter-heading">World Icons:</span>
+            <button
+              class="master-toggle-btn"
+              [class.all-active]="placesService.areAllCategoriesActive()"
+              (click)="toggleAllCategories()"
+              [title]="placesService.areAllCategoriesActive() ? 'Deactivate all icon categories' : 'Activate all icon categories'">
+              <span class="btn-check">{{ placesService.areAllCategoriesActive() ? '✓' : '✕' }}</span>
+              <span class="btn-text">{{ placesService.areAllCategoriesActive() ? 'Deactivate All' : 'Activate All' }}</span>
+              <span class="count-pill">{{ placesService.getActiveCategoriesCount() }}/6</span>
+            </button>
+          </div>
+
+          <div class="category-chips-row">
+            @for (cat of categories; track cat.id) {
+              <button
+                class="cat-chip"
+                [class.active]="placesService.isCategoryActive(cat.id)"
+                [style.--chip-accent]="cat.color"
+                (click)="toggleCategory(cat.id)"
+                [title]="placesService.isCategoryActive(cat.id) ? 'Deactivate ' + cat.name : 'Activate ' + cat.name">
+                <span class="chip-status">
+                  <span class="status-dot"></span>
+                </span>
+                <span class="chip-emoji">{{ cat.emoji }}</span>
+                <span class="chip-label">{{ cat.name }}</span>
+                <span class="chip-count">{{ getPlaceCountByCategory(cat.id, allPlaces) }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
     }
 
     <!-- Main View Switcher -->

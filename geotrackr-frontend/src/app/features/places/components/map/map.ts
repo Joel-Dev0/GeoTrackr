@@ -118,6 +118,11 @@ export class Map implements AfterViewInit, OnDestroy {
     );
   }
 
+  public viewWorld() {
+    if (!this.map) return;
+    this.map.flyTo([20, 0], 2, { animate: true, duration: 1.5 });
+  }
+
   private renderUserLocation(lat: number, lng: number, accuracy: number) {
     const L = this.L;
     if (!this.map || !L) return;
@@ -334,20 +339,13 @@ export class Map implements AfterViewInit, OnDestroy {
       markerList.push(marker);
     });
 
-    // Auto-fit map bounds ONLY if user explicitly filtered a category or if we haven't centered on user
-    const activeCategory = this.placesService.getActiveCategory();
-    if (markerList.length > 0) {
-      if (activeCategory !== 'all') {
-        try {
-          const group = L.featureGroup(markerList);
-          this.map.fitBounds(group.getBounds().pad(0.12));
-        } catch (e) {}
-      } else if (!this.hasCenteredOnUser && !this.isLocating) {
-        try {
-          const group = L.featureGroup(markerList);
-          this.map.fitBounds(group.getBounds().pad(0.12));
-        } catch (e) {}
-      }
+    // Auto-fit map bounds ONLY if user isolated a single category and we haven't centered on user
+    const activeCats = this.placesService.getActiveCategories();
+    if (markerList.length > 0 && activeCats.length === 1 && !this.hasCenteredOnUser && !this.isLocating) {
+      try {
+        const group = L.featureGroup(markerList);
+        this.map.fitBounds(group.getBounds().pad(0.12));
+      } catch (e) {}
     }
   }
 }

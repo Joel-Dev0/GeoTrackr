@@ -3,7 +3,7 @@ import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Map } from './features/places/components/map/map';
-import { PlacesService, Place, TileLayerType } from './features/places/services/places.service';
+import { PlacesService, Place, TileLayerType, CATEGORIES_LIST } from './features/places/services/places.service';
 
 @Component({
   selector: 'app-root',
@@ -14,10 +14,10 @@ import { PlacesService, Place, TileLayerType } from './features/places/services/
 })
 export class App {
   public placesService = inject(PlacesService);
+  public categories = CATEGORIES_LIST;
   
   isSidebarOpen = signal(false);
   activeTab = signal<'map' | 'saved' | 'settings'>('map');
-  activeCategory = signal<string>('all');
   isAddPlaceModalOpen = signal(false);
 
   newPlace = {
@@ -42,9 +42,17 @@ export class App {
     }
   }
 
-  setCategory(category: string) {
-    this.activeCategory.set(category);
-    this.placesService.setCategory(category);
+  toggleCategory(categoryId: string) {
+    this.placesService.toggleCategory(categoryId);
+  }
+
+  toggleAllCategories() {
+    this.placesService.toggleAllCategories();
+  }
+
+  getPlaceCountByCategory(catId: string, places: Place[] | null): number {
+    if (!places) return 0;
+    return places.filter(p => (p.category || 'tourist').toLowerCase() === catId.toLowerCase()).length;
   }
 
   onSearch(event: Event) {

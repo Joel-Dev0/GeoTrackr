@@ -1,11 +1,22 @@
 <div class="map-container">
   <div #mapElement id="map"></div>
-  <button
-    class="locate-btn"
-    (click)="locateUser()"
-    [class.locating]="isLocating"
-    [title]="isLocating ? 'Locating...' : 'Go to my location'">
-    <span class="locate-icon" *ngIf="!isLocating">🎯</span>
-    <span class="locate-spinner" *ngIf="isLocating"></span>
-  </button>
+
+  <div class="map-floating-controls">
+    <button
+      class="map-ctrl-btn"
+      (click)="viewWorld()"
+      title="View whole world map (Global overview)">
+      <span class="btn-icon">🌍</span>
+      <span class="btn-label">World</span>
+    </button>
+    <button
+      class="map-ctrl-btn"
+      (click)="locateUser()"
+      [class.locating]="isLocating"
+      [title]="isLocating ? 'Locating...' : 'Center on my location'">
+      <span class="btn-icon" *ngIf="!isLocating">🎯</span>
+      <span class="locate-spinner" *ngIf="isLocating"></span>
+      <span class="btn-label">My Location</span>
+    </button>
+  </div>
 </div>
