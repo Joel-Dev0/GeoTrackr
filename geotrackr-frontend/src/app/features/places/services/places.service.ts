@@ -2,6 +2,7 @@ import { Injectable, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 
 export interface Place {
   id: number;
@@ -18,7 +19,7 @@ export interface Place {
 export class PlacesService {
   private http = inject(HttpClient);
   private platformId = inject(PLATFORM_ID);
-  private apiUrl = '/api/places';
+  private apiUrl = `${environment.apiUrl}/places`;
   
   private placesSubject = new BehaviorSubject<Place[]>([]);
   public places$ = this.placesSubject.asObservable();
