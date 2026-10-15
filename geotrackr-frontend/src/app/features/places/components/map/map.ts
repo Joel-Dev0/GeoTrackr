@@ -256,6 +256,9 @@ export class Map implements AfterViewInit, OnDestroy {
       case 'landmark': return '⭐';
       case 'tourist':
       case 'tourist_zone': return '📍';
+      case 'hospital': return '🏥';
+      case 'school':
+      case 'university': return '🎓';
       default: return '📍';
     }
   }

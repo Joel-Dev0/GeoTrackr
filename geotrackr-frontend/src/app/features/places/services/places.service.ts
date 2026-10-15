@@ -30,7 +30,9 @@ export const CATEGORIES_LIST: CategoryFilterItem[] = [
   { id: 'museum', name: 'Museums', emoji: '🏛️', color: '#6366f1' },
   { id: 'park', name: 'Parks & Nature', emoji: '🌳', color: '#10b981' },
   { id: 'restaurant', name: 'Restaurants', emoji: '🍽️', color: '#f43f5e' },
-  { id: 'church', name: 'Churches & Heritage', emoji: '⛪', color: '#a855f7' }
+  { id: 'church', name: 'Churches & Heritage', emoji: '⛪', color: '#a855f7' },
+  { id: 'hospital', name: 'Hospitals', emoji: '🏥', color: '#ef4444' },
+  { id: 'school', name: 'Schools & Universities', emoji: '🎓', color: '#3b82f6' }
 ];
 
 // Rich curated points of interest distributed across the world map
@@ -677,6 +679,178 @@ export const DEFAULT_CURATED_PLACES: Place[] = [
     lng: 151.2100,
     description: 'Celebrated Australian fine dining by Chef Peter Gilmore with panoramic views of Sydney Opera House.',
     category: 'restaurant'
+  },
+
+  // --- Hospitals & Healthcare ---
+  {
+    id: 80,
+    name: 'Hospital Universitario San Ignacio',
+    lat: 4.6293,
+    lng: -74.0645,
+    description: 'Premier university hospital and medical research center affiliated with Javeriana in Bogotá, Colombia.',
+    category: 'hospital'
+  },
+  {
+    id: 81,
+    name: 'Fundación Santa Fe de Bogotá',
+    lat: 4.6933,
+    lng: -74.0325,
+    description: 'Internationally accredited hospital renowned for oncology, cardiology, and advanced transplants in Bogotá.',
+    category: 'hospital'
+  },
+  {
+    id: 82,
+    name: 'Hospital Pablo Tobón Uribe',
+    lat: 6.2750,
+    lng: -75.5866,
+    description: 'Highly acclaimed university hospital providing specialized clinical care in Medellín, Colombia.',
+    category: 'hospital'
+  },
+  {
+    id: 83,
+    name: 'Mayo Clinic Hospital',
+    lat: 44.0225,
+    lng: -92.4666,
+    description: 'Consistently ranked the world’s best hospital system, renowned for integrated clinical research in Minnesota, USA.',
+    category: 'hospital'
+  },
+  {
+    id: 84,
+    name: 'Massachusetts General Hospital',
+    lat: 42.3625,
+    lng: -71.0694,
+    description: 'Original and largest teaching hospital of Harvard Medical School located in Boston, USA.',
+    category: 'hospital'
+  },
+  {
+    id: 85,
+    name: 'The Johns Hopkins Hospital',
+    lat: 39.2971,
+    lng: -76.5927,
+    description: 'World-famous biomedical research and clinical teaching hospital in Baltimore, Maryland, USA.',
+    category: 'hospital'
+  },
+  {
+    id: 86,
+    name: 'Charité – Universitätsmedizin Berlin',
+    lat: 52.5259,
+    lng: 13.3777,
+    description: 'One of the largest and most prestigious university hospitals in Europe, home to half of Germany’s Nobel laureates.',
+    category: 'hospital'
+  },
+  {
+    id: 87,
+    name: 'Hôpital Européen Georges-Pompidou',
+    lat: 48.8394,
+    lng: 2.2741,
+    description: 'Modern flagship university hospital center renowned for cardiac surgery and emergency care in Paris, France.',
+    category: 'hospital'
+  },
+  {
+    id: 88,
+    name: 'The University of Tokyo Hospital',
+    lat: 35.7118,
+    lng: 139.7661,
+    description: 'Japan’s premier academic hospital advancing state-of-the-art clinical robotics and precision medicine in Tokyo.',
+    category: 'hospital'
+  },
+  {
+    id: 89,
+    name: 'Singapore General Hospital',
+    lat: 1.2789,
+    lng: 103.8344,
+    description: 'Pioneering tertiary healthcare hub ranked among the world’s top 10 medical centers in Singapore.',
+    category: 'hospital'
+  },
+
+  // --- Schools & Universities ---
+  {
+    id: 90,
+    name: 'Universidad Nacional de Colombia',
+    lat: 4.6382,
+    lng: -74.0840,
+    description: 'Colombia’s premier public university with an expansive central campus and top research institutes in Bogotá.',
+    category: 'school'
+  },
+  {
+    id: 91,
+    name: 'Pontificia Universidad Javeriana',
+    lat: 4.6288,
+    lng: -74.0648,
+    description: 'Prestigious Jesuit university founded in 1623 with a vibrant collegiate campus in Bogotá, Colombia.',
+    category: 'school'
+  },
+  {
+    id: 92,
+    name: 'Universidad de los Andes',
+    lat: 4.6025,
+    lng: -74.0655,
+    description: 'Top-ranked private research university nestled in the Andean foothills of historic central Bogotá.',
+    category: 'school'
+  },
+  {
+    id: 93,
+    name: 'Universidad de Antioquia',
+    lat: 6.2678,
+    lng: -75.5683,
+    description: 'Historic public university campus renowned for medicine, sciences, and engineering in Medellín, Colombia.',
+    category: 'school'
+  },
+  {
+    id: 94,
+    name: 'Harvard University',
+    lat: 42.3770,
+    lng: -71.1167,
+    description: 'World-renowned Ivy League research university founded in 1636 in Cambridge/Boston, Massachusetts, USA.',
+    category: 'school'
+  },
+  {
+    id: 95,
+    name: 'Massachusetts Institute of Technology (MIT)',
+    lat: 42.3601,
+    lng: -71.0942,
+    description: 'Global leader in science, artificial intelligence, and engineering innovation located in Cambridge, USA.',
+    category: 'school'
+  },
+  {
+    id: 96,
+    name: 'University of Oxford',
+    lat: 51.7548,
+    lng: -1.2544,
+    description: 'The oldest university in the English-speaking world, with collegiate halls dating back to 1096 in Oxford, UK.',
+    category: 'school'
+  },
+  {
+    id: 97,
+    name: 'University of Cambridge',
+    lat: 52.2043,
+    lng: 0.1149,
+    description: 'Historic collegiate research university on the River Cam, alma mater of Isaac Newton and Alan Turing in Cambridge, UK.',
+    category: 'school'
+  },
+  {
+    id: 98,
+    name: 'Sorbonne Université',
+    lat: 48.8485,
+    lng: 2.3433,
+    description: 'Legendary institution of higher learning in the Latin Quarter founded in 1257 in Paris, France.',
+    category: 'school'
+  },
+  {
+    id: 99,
+    name: 'University of Tokyo',
+    lat: 35.7126,
+    lng: 139.7620,
+    description: 'Japan’s highest-ranked public research university famous for the historic Akamon (Red Gate) in Tokyo.',
+    category: 'school'
+  },
+  {
+    id: 100,
+    name: 'University of Sydney',
+    lat: -33.8886,
+    lng: 151.1873,
+    description: 'Australia’s first university featuring iconic neo-Gothic sandstone Quadrangle buildings in Sydney.',
+    category: 'school'
   }
 ];
 
@@ -692,10 +866,10 @@ export class PlacesService {
   private placesSubject = new BehaviorSubject<Place[]>(DEFAULT_CURATED_PLACES);
   public places$ = this.placesSubject.asObservable();
 
-  // Active categories multi-filter state (All 6 enabled by default)
-  private activeCategoriesSubject = new BehaviorSubject<string[]>([
-    'landmark', 'tourist', 'museum', 'park', 'restaurant', 'church'
-  ]);
+  // Active categories multi-filter state (All categories enabled by default)
+  private activeCategoriesSubject = new BehaviorSubject<string[]>(
+    CATEGORIES_LIST.map(c => c.id)
+  );
   public activeCategories$ = this.activeCategoriesSubject.asObservable();
 
   // Selected place for focused details / map flyTo
@@ -804,7 +978,7 @@ export class PlacesService {
   }
 
   activateAllCategories(): void {
-    this.activeCategoriesSubject.next(['landmark', 'tourist', 'museum', 'park', 'restaurant', 'church']);
+    this.activeCategoriesSubject.next(CATEGORIES_LIST.map(c => c.id));
   }
 
   deactivateAllCategories(): void {
@@ -820,7 +994,7 @@ export class PlacesService {
   }
 
   areAllCategoriesActive(): boolean {
-    return this.activeCategoriesSubject.getValue().length === 6;
+    return this.activeCategoriesSubject.getValue().length === CATEGORIES_LIST.length;
   }
 
   getActiveCategoriesCount(): number {
@@ -841,7 +1015,7 @@ export class PlacesService {
 
   getActiveCategory(): string {
     const active = this.activeCategoriesSubject.getValue();
-    if (active.length === 6) return 'all';
+    if (active.length === CATEGORIES_LIST.length) return 'all';
     if (active.length === 1) return active[0];
     return 'custom';
   }

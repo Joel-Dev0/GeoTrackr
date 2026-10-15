@@ -78,7 +78,7 @@
               [title]="placesService.areAllCategoriesActive() ? 'Deactivate all icon categories' : 'Activate all icon categories'">
               <span class="btn-check">{{ placesService.areAllCategoriesActive() ? '✓' : '✕' }}</span>
               <span class="btn-text">{{ placesService.areAllCategoriesActive() ? 'Deactivate All' : 'Activate All' }}</span>
-              <span class="count-pill">{{ placesService.getActiveCategoriesCount() }}/6</span>
+              <span class="count-pill">{{ placesService.getActiveCategoriesCount() }}/{{ categories.length }}</span>
             </button>
           </div>
 
@@ -270,12 +270,14 @@
           <div class="form-group">
             <label>Category</label>
             <select [(ngModel)]="newPlace.category" name="category">
-              <option value="tourist">🏛️ Tourist Zone</option>
-              <option value="restaurant">🍽️ Restaurant & Gastronomy</option>
-              <option value="park">🌳 Park & Nature</option>
-              <option value="church">⛪ Church & Heritage</option>
+              <option value="tourist">📍 Tourist Zone</option>
               <option value="landmark">⭐ Landmark & Monument</option>
-              <option value="museum">🎨 Museum & Art</option>
+              <option value="museum">🏛️ Museum & Art</option>
+              <option value="park">🌳 Park & Nature</option>
+              <option value="restaurant">🍽️ Restaurant & Gastronomy</option>
+              <option value="church">⛪ Church & Heritage</option>
+              <option value="hospital">🏥 Hospital & Healthcare</option>
+              <option value="school">🎓 School & University</option>
             </select>
           </div>
 
