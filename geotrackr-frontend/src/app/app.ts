@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Map } from './features/places/components/map/map';
 import { PlacesService, Place, TileLayerType, CATEGORIES_LIST } from './features/places/services/places.service';
 import { RoutingService, TravelMode, ActiveRoute } from './features/places/services/routing.service';
+import { TourPlannerService, TouristRoute, TouristStop, CURATED_TOURIST_ROUTES } from './features/places/services/tour-planner.service';
 
 @Component({
   selector: 'app-root',
@@ -16,12 +17,15 @@ import { RoutingService, TravelMode, ActiveRoute } from './features/places/servi
 export class App {
   public placesService = inject(PlacesService);
   public routingService = inject(RoutingService);
+  public tourPlannerService = inject(TourPlannerService);
   public categories = CATEGORIES_LIST;
+  public curatedTours = CURATED_TOURIST_ROUTES;
   
   isSidebarOpen = signal(false);
-  activeTab = signal<'map' | 'saved' | 'settings'>('map');
+  activeTab = signal<'map' | 'planner' | 'saved' | 'settings'>('map');
   isAddPlaceModalOpen = signal(false);
   isDirectionsExpanded = signal(false);
+  isTourLegsExpanded = signal(false);
 
   newPlace = {
     name: '',
@@ -38,7 +42,7 @@ export class App {
     this.isSidebarOpen.update(v => !v);
   }
 
-  setTab(tab: 'map' | 'saved' | 'settings') {
+  setTab(tab: 'map' | 'planner' | 'saved' | 'settings') {
     this.activeTab.set(tab);
     if (this.isSidebarOpen()) {
       this.isSidebarOpen.set(false);
@@ -73,6 +77,8 @@ export class App {
     this.placesService.toggleSavePlace(place);
   }
 
+  // --- Point-to-Point Navigation ---
+
   startNavigation(place: Place, event?: Event) {
     if (event) event.stopPropagation();
     this.activeTab.set('map');
@@ -91,6 +97,101 @@ export class App {
   toggleDirections() {
     this.isDirectionsExpanded.update(v => !v);
   }
+
+  // --- Tourist Route Planner Actions ---
+
+  addPlaceToTour(place: Place, event?: Event) {
+    if (event) event.stopPropagation();
+    this.tourPlannerService.addPlaceAsStop(place);
+  }
+
+  addCurrentLocationToTour() {
+    this.tourPlannerService.addCurrentLocationAsStop();
+  }
+
+  removeTourStop(index: number) {
+    this.tourPlannerService.removeStop(index);
+  }
+
+  moveTourStop(index: number, direction: 'up' | 'down') {
+    this.tourPlannerService.moveStop(index, direction);
+  }
+
+  clearTourBuilder() {
+    this.tourPlannerService.clearAllStops();
+  }
+
+  setTourMode(mode: TravelMode) {
+    this.tourPlannerService.currentTourMode = mode;
+  }
+
+  launchCuratedTour(tour: TouristRoute) {
+    if (tour.coordinates && tour.coordinates.length > 0) {
+      this.tourPlannerService.setActiveTour(tour);
+      this.setTab('map');
+    } else {
+      this.tourPlannerService.computeTourRoute(tour.stops, tour.mode).subscribe(computed => {
+        if (computed) {
+          computed.name = tour.name;
+          computed.description = tour.description;
+          this.tourPlannerService.setActiveTour(computed);
+          this.setTab('map');
+        }
+      });
+    }
+  }
+
+  launchCurrentBuilderTour() {
+    const stops = this.tourPlannerService.getStops();
+    if (stops.length < 2) return;
+
+    this.tourPlannerService.computeTourRoute(stops, this.tourPlannerService.currentTourMode).subscribe(route => {
+      if (route) {
+        this.tourPlannerService.setActiveTour(route);
+        this.setTab('map');
+      }
+    });
+  }
+
+  autoOptimizeBuilderTour() {
+    const stops = this.tourPlannerService.getStops();
+    this.tourPlannerService.autoOptimizeStopsOrder(stops, this.tourPlannerService.currentTourMode).subscribe(optRoute => {
+      if (optRoute) {
+        this.tourPlannerService.setActiveTour(optRoute);
+      }
+    });
+  }
+
+  saveBuilderTour() {
+    const stops = this.tourPlannerService.getStops();
+    if (stops.length < 2) return;
+
+    this.tourPlannerService.computeTourRoute(stops, this.tourPlannerService.currentTourMode).subscribe(route => {
+      if (route) {
+        this.tourPlannerService.saveCurrentTour(route);
+      }
+    });
+  }
+
+  loadSavedTour(tour: TouristRoute) {
+    this.tourPlannerService.loadTourIntoBuilder(tour);
+  }
+
+  deleteSavedTour(tourId: string, event?: Event) {
+    if (event) event.stopPropagation();
+    this.tourPlannerService.deleteTour(tourId);
+  }
+
+  clearActiveTour() {
+    this.tourPlannerService.clearActiveTour();
+    this.isTourLegsExpanded.set(false);
+  }
+
+  toggleTourLegs() {
+    this.isTourLegsExpanded.update(v => !v);
+  }
+
+  // --- Add Place Modal ---
 
   openAddPlaceModal() {
     const userLoc = this.placesService.getUserLocation();

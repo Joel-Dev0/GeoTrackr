@@ -2,6 +2,7 @@ import { Component, AfterViewInit, OnDestroy, ViewChild, ElementRef, inject, PLA
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { PlacesService, Place, TileLayerType } from '../../services/places.service';
 import { RoutingService, ActiveRoute } from '../../services/routing.service';
+import { TourPlannerService, TouristRoute } from '../../services/tour-planner.service';
 import { Subject, takeUntil } from 'rxjs';
 
 @Component({
@@ -16,6 +17,7 @@ export class Map implements AfterViewInit, OnDestroy {
 
   public placesService = inject(PlacesService);
   public routingService = inject(RoutingService);
+  public tourPlannerService = inject(TourPlannerService);
   private platformId = inject(PLATFORM_ID);
   
   private L: any;
@@ -27,6 +29,9 @@ export class Map implements AfterViewInit, OnDestroy {
   private routeGlowLayer?: any;
   private routeMainLayer?: any;
   private destMarker?: any;
+  private tourWaypointMarkers: any[] = [];
+  private tourPolylineGlow?: any;
+  private tourPolylineMain?: any;
   private moveDebounceTimer?: any;
   private destroy$ = new Subject<void>();
 
@@ -45,6 +50,7 @@ export class Map implements AfterViewInit, OnDestroy {
         this.listenToPlaces();
         this.listenToSelectedPlace();
         this.listenToActiveRoute();
+        this.listenToActiveTour();
 
         // Start map from user's actual location
         this.locateUser(true);
@@ -60,6 +66,7 @@ export class Map implements AfterViewInit, OnDestroy {
     if (this.moveDebounceTimer) {
       clearTimeout(this.moveDebounceTimer);
     }
+    this.clearTourLayers();
     if (this.map) {
       this.map.remove();
       this.map = undefined;
@@ -498,6 +505,123 @@ export class Map implements AfterViewInit, OnDestroy {
         duration: 1.2
       });
     } catch (e) {}
+  }
+
+  // --- Multi-Stop Tourist Route & Itinerary Visualization ---
+
+  private listenToActiveTour() {
+    this.tourPlannerService.activeTour$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(tour => {
+        this.renderTour(tour);
+      });
+  }
+
+  private clearTourLayers() {
+    if (!this.map) return;
+    if (this.tourPolylineGlow) {
+      this.map.removeLayer(this.tourPolylineGlow);
+      this.tourPolylineGlow = undefined;
+    }
+    if (this.tourPolylineMain) {
+      this.map.removeLayer(this.tourPolylineMain);
+      this.tourPolylineMain = undefined;
+    }
+    this.tourWaypointMarkers.forEach(marker => this.map.removeLayer(marker));
+    this.tourWaypointMarkers = [];
+  }
+
+  private renderTour(tour: TouristRoute | null) {
+    const L = this.L;
+    if (!this.map || !L) return;
+
+    this.clearTourLayers();
+
+    if (!tour || !tour.stops || tour.stops.length === 0) {
+      return;
+    }
+
+    // Render Numbered Waypoint Badges (①, ②, ③, ④...)
+    tour.stops.forEach((stop, index) => {
+      const stopNumber = index + 1;
+      const isFirst = index === 0;
+      const isLast = index === tour.stops.length - 1;
+      const badgeClass = isFirst ? 'start-stop' : (isLast ? 'end-stop' : 'waypoint-stop');
+
+      const stopIcon = L.divIcon({
+        className: 'custom-leaflet-icon tour-stop-icon',
+        html: `
+          <div class="pulse-marker-wrapper" title="Stop ${stopNumber}: ${stop.name}">
+            <div class="tour-numbered-badge ${badgeClass}">
+              <span class="badge-num">${stopNumber}</span>
+            </div>
+          </div>
+        `,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18]
+      });
+
+      const marker = L.marker([stop.lat, stop.lng], {
+        icon: stopIcon,
+        zIndexOffset: 1200 + stopNumber
+      })
+        .addTo(this.map)
+        .bindPopup(`
+          <div class="custom-popup tour-popup">
+            <div class="popup-header">
+              <span class="category-badge ${badgeClass}">
+                ${isFirst ? '🚀 TOUR START' : (isLast ? '🏁 TOUR END' : `📍 STOP ${stopNumber}`)}
+              </span>
+            </div>
+            <h3 class="popup-title">${stop.name}</h3>
+            <p class="popup-description">${stop.description || 'Curated point of interest on this itinerary.'}</p>
+            <div class="popup-coordinates">
+              Stop ${stopNumber} of ${tour.stops.length} &bull; 📍 ${stop.lat.toFixed(4)}, ${stop.lng.toFixed(4)}
+            </div>
+          </div>
+        `, { closeButton: false, minWidth: 230 });
+
+      this.tourWaypointMarkers.push(marker);
+    });
+
+    // Render Multi-Leg Glowing Polyline if coordinates exist
+    if (tour.coordinates && tour.coordinates.length > 0) {
+      const isWalking = tour.mode === 'walking';
+
+      // Outer glow line
+      this.tourPolylineGlow = L.polyline(tour.coordinates, {
+        color: '#8b5cf6',
+        weight: 10,
+        opacity: 0.45,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(this.map);
+
+      // Main route line
+      this.tourPolylineMain = L.polyline(tour.coordinates, {
+        color: '#06b6d4',
+        weight: 5,
+        opacity: 0.95,
+        lineCap: 'round',
+        lineJoin: 'round',
+        dashArray: isWalking ? '8, 8' : undefined
+      }).addTo(this.map);
+
+      try {
+        this.map.fitBounds(this.tourPolylineMain.getBounds().pad(0.18), {
+          animate: true,
+          duration: 1.2
+        });
+      } catch (e) {}
+    } else if (this.tourWaypointMarkers.length > 0) {
+      try {
+        const group = L.featureGroup(this.tourWaypointMarkers);
+        this.map.fitBounds(group.getBounds().pad(0.18), {
+          animate: true,
+          duration: 1.0
+        });
+      } catch (e) {}
+    }
   }
 }
 

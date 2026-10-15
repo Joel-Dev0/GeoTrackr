@@ -15,6 +15,13 @@
           <span class="nav-icon">🗺️</span>
           Live Map
         </li>
+        <li [class.active]="activeTab() === 'planner'" (click)="setTab('planner')">
+          <span class="nav-icon">🧭</span>
+          Tour Planner
+          @if ((tourPlannerService.currentStops$ | async)?.length; as stopsCount) {
+            <span class="badge planner-badge">{{ stopsCount }}</span>
+          }
+        </li>
         <li [class.active]="activeTab() === 'saved'" (click)="setTab('saved')">
           <span class="nav-icon">⭐</span>
           Saved Places
@@ -220,6 +227,76 @@
             </div>
           }
 
+          <!-- Multi-Stop Tourist Tour HUD -->
+          @if (tourPlannerService.activeTour$ | async; as tour) {
+            <div class="tour-guide-hud glass-panel" [class.expanded]="isTourLegsExpanded()">
+              <div class="tour-hud-header">
+                <div class="tour-hud-title-group">
+                  <span class="tour-status-tag">🧭 ACTIVE TOURIST ITINERARY</span>
+                  <h4 class="tour-title-text">{{ tour.name }}</h4>
+                </div>
+                <div class="tour-hud-controls">
+                  <button class="tour-edit-btn" (click)="setTab('planner')" title="Edit itinerary in Tour Planner">✏️ Planner</button>
+                  <button class="tour-close-btn" (click)="clearActiveTour()" title="Exit Tour">✕</button>
+                </div>
+              </div>
+
+              <!-- Tour Key Metrics -->
+              <div class="tour-metrics-grid">
+                <div class="tour-metric-card">
+                  <span class="t-metric-label">Stops</span>
+                  <span class="t-metric-val">{{ tour.stops.length }} <small>places</small></span>
+                </div>
+                <div class="tour-metric-card">
+                  <span class="t-metric-label">Total Time</span>
+                  <span class="t-metric-val">{{ tour.totalDurationMin }} <small>min</small></span>
+                </div>
+                <div class="tour-metric-card">
+                  <span class="t-metric-label">Total Distance</span>
+                  <span class="t-metric-val">{{ tour.totalDistanceKm }} <small>km</small></span>
+                </div>
+                <div class="tour-metric-card">
+                  <span class="t-metric-label">Travel Style</span>
+                  <span class="t-metric-val capitalize">{{ tour.mode }}</span>
+                </div>
+              </div>
+
+              <!-- Stops Sequence Ribbon -->
+              <div class="tour-stops-ribbon">
+                @for (stop of tour.stops; track $index) {
+                  <div class="ribbon-stop-chip" [title]="stop.name">
+                    <span class="stop-num-circle">{{ $index + 1 }}</span>
+                    <span class="stop-chip-name">{{ stop.name }}</span>
+                  </div>
+                  @if ($index < tour.stops.length - 1) {
+                    <span class="ribbon-arrow">➔</span>
+                  }
+                }
+              </div>
+
+              <!-- Toggle Leg Details -->
+              @if (tour.legs && tour.legs.length > 0) {
+                <button class="tour-legs-toggle-btn" (click)="toggleTourLegs()">
+                  {{ isTourLegsExpanded() ? '▲ Hide Leg Details' : '▼ View Tour Legs (' + tour.legs.length + ' segments)' }}
+                </button>
+
+                @if (isTourLegsExpanded()) {
+                  <div class="tour-legs-list">
+                    @for (leg of tour.legs; track $index) {
+                      <div class="tour-leg-item">
+                        <span class="leg-badge">Leg {{ $index + 1 }}</span>
+                        <div class="leg-info">
+                          <span class="leg-route">{{ leg.fromStop }} ➔ {{ leg.toStop }}</span>
+                          <span class="leg-meta">⏱️ {{ leg.durationMin }} min &bull; 📏 {{ leg.distanceKm }} km via {{ leg.summary }}</span>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          }
+
           <!-- Selected Place Floating Card -->
           @if (placesService.selectedPlace$ | async; as selected) {
             <div class="selected-card glass-panel">
@@ -236,7 +313,10 @@
               </div>
               <div class="card-buttons">
                 <button class="navigate-card-btn" (click)="startNavigation(selected)">
-                  🚀 Get Route
+                  🚀 Route
+                </button>
+                <button class="add-tour-card-btn" (click)="addPlaceToTour(selected)">
+                  + Tour 🧭
                 </button>
                 <button class="save-toggle-btn" [class.is-saved]="placesService.isPlaceSaved(selected.id)" (click)="toggleSave(selected)">
                   {{ placesService.isPlaceSaved(selected.id) ? '★ Saved' : '☆ Save' }}
@@ -247,7 +327,248 @@
         </div>
       }
 
-      <!-- 2. SAVED PLACES VIEW -->
+      <!-- 2. TOURIST ROUTE & ITINERARY PLANNER VIEW -->
+      @if (activeTab() === 'planner') {
+        <div class="planner-view-wrapper">
+          <div class="view-header">
+            <div>
+              <h2>🧭 Tourist Route & Itinerary Planner</h2>
+              <p>Design multi-stop tourist trails, discover handpicked cultural & scenic routes, or auto-optimize stop order for safety and speed.</p>
+            </div>
+            @if (tourPlannerService.plannerMessage$ | async; as msg) {
+              @if (msg) {
+                <div class="planner-toast-badge">
+                  <span>✨ {{ msg }}</span>
+                </div>
+              }
+            }
+          </div>
+
+          <div class="planner-layout-grid">
+            <!-- Left Column: Tour Workshop / Custom Builder -->
+            <section class="planner-card glass-panel tour-builder-section">
+              <div class="section-title-row">
+                <div class="sec-heading">
+                  <span class="sec-emoji">🛠️</span>
+                  <div>
+                    <h3>Tour Route Builder</h3>
+                    <p>Configure stops, choose travel style, and calculate optimized tour path.</p>
+                  </div>
+                </div>
+                <button class="clear-stops-btn" (click)="clearTourBuilder()" title="Clear all stops">Clear</button>
+              </div>
+
+              <!-- Tour Meta Inputs -->
+              <div class="builder-inputs-group">
+                <div class="input-field">
+                  <label>Itinerary Name</label>
+                  <input type="text" [(ngModel)]="tourPlannerService.currentTourName" placeholder="e.g. Historic Downtown & Museum Trail">
+                </div>
+                <div class="input-field">
+                  <label>Travel Style</label>
+                  <div class="tour-mode-pills">
+                    <button
+                      class="mode-pill"
+                      [class.selected]="tourPlannerService.currentTourMode === 'walking'"
+                      (click)="setTourMode('walking')">
+                      🚶 Walk
+                    </button>
+                    <button
+                      class="mode-pill"
+                      [class.selected]="tourPlannerService.currentTourMode === 'driving'"
+                      (click)="setTourMode('driving')">
+                      🚗 Drive
+                    </button>
+                    <button
+                      class="mode-pill"
+                      [class.selected]="tourPlannerService.currentTourMode === 'cycling'"
+                      (click)="setTourMode('cycling')">
+                      🚲 Bike
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stops Timeline -->
+              <div class="stops-section">
+                <div class="stops-header">
+                  <h4>Itinerary Stops ({{ (tourPlannerService.currentStops$ | async)?.length || 0 }})</h4>
+                  <div class="stops-quick-actions">
+                    <button class="quick-add-btn" (click)="addCurrentLocationToTour()" title="Add your GPS position as starting stop">
+                      🧭 + My Location
+                    </button>
+                    <button class="quick-add-btn" (click)="setTab('map')" title="Pick attractions on the live map">
+                      🗺️ + Pick on Map
+                    </button>
+                  </div>
+                </div>
+
+                @if (tourPlannerService.currentStops$ | async; as stops) {
+                  @if (stops.length === 0) {
+                    <div class="empty-stops-prompt">
+                      <span class="prompt-icon">📍</span>
+                      <h4>No tourist stops added yet</h4>
+                      <p>Click <strong>"+ My Location"</strong> or browse places on the map and click <strong>"+ Tour 🧭"</strong> to build your journey!</p>
+                    </div>
+                  } @else {
+                    <div class="stops-timeline">
+                      @for (stop of stops; track stop.id; let i = $index) {
+                        <div class="timeline-stop-card" [class.is-first]="i === 0" [class.is-last]="i === stops.length - 1">
+                          <div class="stop-badge-column">
+                            <span class="stop-number-badge" [class.start]="i === 0" [class.end]="i === stops.length - 1">
+                              {{ i + 1 }}
+                            </span>
+                            @if (i < stops.length - 1) {
+                              <div class="timeline-connector-line"></div>
+                            }
+                          </div>
+                          <div class="stop-content">
+                            <div class="stop-title-line">
+                              <span class="stop-name">{{ stop.name }}</span>
+                              <div class="stop-reorder-controls">
+                                <button class="reorder-btn" [disabled]="i === 0" (click)="moveTourStop(i, 'up')" title="Move Up">▲</button>
+                                <button class="reorder-btn" [disabled]="i === stops.length - 1" (click)="moveTourStop(i, 'down')" title="Move Down">▼</button>
+                                <button class="remove-stop-btn" (click)="removeTourStop(i)" title="Remove stop">✕</button>
+                              </div>
+                            </div>
+                            <p class="stop-desc">{{ stop.description || 'Scenic point of interest' }}</p>
+                            <div class="stop-geo">📍 {{ stop.lat.toFixed(4) }}, {{ stop.lng.toFixed(4) }}</div>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                }
+              </div>
+
+              <!-- Builder Action Buttons -->
+              <div class="builder-actions-row">
+                <button
+                  class="action-btn optimize-btn"
+                  [disabled]="((tourPlannerService.currentStops$ | async)?.length || 0) < 3 || (tourPlannerService.isOptimizing$ | async)"
+                  (click)="autoOptimizeBuilderTour()"
+                  title="Auto-arrange stops for shortest distance and fastest travel">
+                  @if (tourPlannerService.isOptimizing$ | async) {
+                    <span class="btn-spinner"></span>
+                  }
+                  <span>{{ (tourPlannerService.isOptimizing$ | async) ? 'Optimizing Order...' : '✨ Auto-Optimize Order (TSP)' }}</span>
+                </button>
+
+                <button
+                  class="action-btn launch-btn"
+                  [disabled]="((tourPlannerService.currentStops$ | async)?.length || 0) < 2 || (tourPlannerService.isCalculating$ | async)"
+                  (click)="launchCurrentBuilderTour()">
+                  @if (tourPlannerService.isCalculating$ | async) {
+                    <span class="btn-spinner"></span>
+                  }
+                  <span>{{ (tourPlannerService.isCalculating$ | async) ? 'Calculating Path...' : '🚀 Launch on Live Map' }}</span>
+                </button>
+
+                <button
+                  class="action-btn save-itinerary-btn"
+                  [disabled]="((tourPlannerService.currentStops$ | async)?.length || 0) < 2"
+                  (click)="saveBuilderTour()">
+                  💾 Save Itinerary
+                </button>
+              </div>
+            </section>
+
+            <!-- Right Column: Curated Tourist Itineraries & Saved Tours -->
+            <section class="planner-card glass-panel itineraries-section">
+              <!-- Curated Tours -->
+              <div class="itineraries-block">
+                <div class="sec-heading">
+                  <span class="sec-emoji">🌟</span>
+                  <div>
+                    <h3>Curated Tourist Itineraries</h3>
+                    <p>Ready-to-launch thematic routes crafted for culture, nature, and dining.</p>
+                  </div>
+                </div>
+
+                <div class="curated-tours-list">
+                  @for (cTour of curatedTours; track cTour.id) {
+                    <div class="curated-tour-card">
+                      <div class="c-tour-header">
+                        <div class="c-title-group">
+                          <span class="c-mode-tag {{ cTour.mode }}">{{ cTour.mode.toUpperCase() }} TOUR</span>
+                          <h4>{{ cTour.name }}</h4>
+                        </div>
+                      </div>
+                      <p class="c-tour-desc">{{ cTour.description }}</p>
+                      <div class="c-tour-metrics">
+                        <span>📍 {{ cTour.stops.length }} Stops</span>
+                        <span>⏱️ ~{{ cTour.totalDurationMin }} min</span>
+                        <span>📏 ~{{ cTour.totalDistanceKm }} km</span>
+                      </div>
+                      <div class="c-tour-stops-preview">
+                        @for (s of cTour.stops; track s.id; let si = $index) {
+                          <span class="c-stop-pill">{{ si + 1 }}. {{ s.name }}</span>
+                        }
+                      </div>
+                      <div class="c-tour-actions">
+                        <button class="launch-curated-btn" (click)="launchCuratedTour(cTour)">
+                          Launch on Map 🚀
+                        </button>
+                        <button class="load-curated-btn" (click)="loadSavedTour(cTour)">
+                          Load in Builder ✏️
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- User Saved Tours -->
+              <div class="itineraries-block saved-tours-block">
+                <div class="sec-heading">
+                  <span class="sec-emoji">⭐</span>
+                  <div>
+                    <h3>My Custom Saved Tours</h3>
+                    <p>Your personalized itineraries created and saved in GeoTrackr.</p>
+                  </div>
+                </div>
+
+                @if (tourPlannerService.savedTours$ | async; as savedList) {
+                  @if (savedList.length === 0) {
+                    <div class="empty-saved-tours">
+                      <p>No custom itineraries saved yet. Build your route on the left and click <strong>"Save Itinerary"</strong>!</p>
+                    </div>
+                  } @else {
+                    <div class="saved-tours-list">
+                      @for (sTour of savedList; track sTour.id) {
+                        <div class="saved-tour-card">
+                          <div class="s-tour-header">
+                            <div>
+                              <span class="s-mode-tag {{ sTour.mode }}">{{ sTour.mode.toUpperCase() }}</span>
+                              <h4>{{ sTour.name }}</h4>
+                            </div>
+                            <button class="del-tour-btn" (click)="deleteSavedTour(sTour.id, $event)" title="Delete itinerary">✕</button>
+                          </div>
+                          <div class="s-tour-meta">
+                            <span>📍 {{ sTour.stops.length }} Stops</span>
+                            <span>⏱️ {{ sTour.totalDurationMin }} min</span>
+                            <span>📏 {{ sTour.totalDistanceKm }} km</span>
+                          </div>
+                          <div class="s-tour-actions">
+                            <button class="launch-curated-btn" (click)="launchCuratedTour(sTour)">
+                              Launch 🚀
+                            </button>
+                            <button class="load-curated-btn" (click)="loadSavedTour(sTour)">
+                              Edit ✏️
+                            </button>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                }
+              </div>
+            </section>
+          </div>
+        </div>
+      }
+
+      <!-- 3. SAVED PLACES VIEW -->
       @if (activeTab() === 'saved') {
         <div class="saved-view-wrapper">
           <div class="view-header">
@@ -281,7 +602,8 @@
                     <h4>{{ place.name }}</h4>
                     <p class="desc">{{ place.description }}</p>
                     <div class="place-card-footer">
-                      <button class="nav-fav-btn" (click)="startNavigation(place, $event)">Navigate 🚀</button>
+                      <button class="nav-fav-btn" (click)="startNavigation(place, $event)">Route 🚀</button>
+                      <button class="add-tour-fav-btn" (click)="addPlaceToTour(place, $event)">+ Tour 🧭</button>
                       <button class="fly-btn" (click)="flyToPlace(place)">Locate ✈️</button>
                     </div>
                   </div>
