@@ -1,4 +1,4 @@
-FROM php:8.4-apache
+FROM php:8.5-apache
 
 # Set Composer environment variable to allow running as root in container
 ENV COMPOSER_ALLOW_SUPERUSER=1
